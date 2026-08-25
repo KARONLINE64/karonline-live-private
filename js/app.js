@@ -189,7 +189,7 @@ requestForm?.addEventListener('submit', async (event) => {
         submitButton.disabled = false;
         isSubmitting = false;
       }, 2000);
-    } else if (response.status === 504) {
+    } else if (response.status === 409) {
       output.textContent = '❌ KaronlineBox non actif. Lancez l\'application d\'abord.';
       output.classList.add('is-visible');
       submitButton.disabled = false;
