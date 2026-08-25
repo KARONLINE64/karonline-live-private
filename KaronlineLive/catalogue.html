@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catalogue | KaronlineLive</title>
+  <link rel="stylesheet" href="css/styles.css?v=3">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">Karonline<span>Live</span></a>
+    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav">Menu</button>
+    <nav id="main-nav" class="main-nav" aria-label="Navigation principale">
+      <a href="index.html#about">A propos</a><a class="active" href="catalogue.html">Catalogue</a><a href="index.html#offer">Offre bundle</a><a href="index.html#subscribe">S'abonner</a><a href="index.html#login">Se connecter</a><a href="index.html#downloads">Telechargements</a><a class="button button-primary" href="index.html#trial">Essai gratuit</a>
+    </nav>
+  </header>
+  <main class="catalogue-page">
+    <section class="page-heading"><p class="eyebrow">KaronlineLive / Catalogue</p><h1>Choisissez votre chanson</h1><p>Une simulation locale du catalogue de test. Selectionnez un titre pour preparer une demande.</p></section>
+    <section class="catalogue-toolbar"><label for="search">Rechercher un titre ou un artiste</label><input id="search" type="search" placeholder="Ex. Queen, Adele..." autocomplete="off"><span id="result-count" aria-live="polite"></span></section>
+    <section class="song-list" aria-label="Titres disponibles"><div id="songs" class="songs-grid"></div><p id="empty-state" class="empty-state" hidden>Aucun titre ne correspond a votre recherche.</p></section>
+  </main>
+  <dialog id="request-dialog" class="request-dialog">
+    <form id="request-form">
+      <button class="dialog-close" type="button" data-close-dialog="request-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">Demande de chanson</p><h2>Preparons votre passage</h2>
+      <label for="singer">Chanteur</label><input id="singer" name="singer" type="text" required>
+      <label for="artist">Artiste</label><input id="artist" name="artist" type="text" required>
+      <label for="title">Titre</label><input id="title" name="title" type="text" required>
+      <label for="key">Tonalite</label>
+      <select id="key" name="key">
+        <option value="-6">-6</option><option value="-5">-5</option><option value="-4">-4</option>
+        <option value="-3">-3</option><option value="-2">-2</option><option value="-1">-1</option>
+        <option value="0" selected>0</option>
+        <option value="1">+1</option><option value="2">+2</option><option value="3">+3</option>
+        <option value="4">+4</option><option value="5">+5</option><option value="6">+6</option>
+      </select>
+      <div class="request-actions">
+        <button class="button button-primary submit-button" type="submit">Envoyer</button>
+        <button class="button button-primary" type="button" data-close-dialog="request-dialog">Annuler</button>
+      </div>
+      <output id="request-result" class="request-result" aria-live="polite"></output>
+    </form>
+  </dialog>
+  <footer class="site-footer"><span>KaronlineLive</span><span>Catalogue du serveur LAN</span></footer>
+  <script src="js/config.js?v=2"></script>
+  <script src="js/app.js?v=4"></script>
+</body>
+</html>
