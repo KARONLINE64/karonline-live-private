@@ -13,7 +13,6 @@ document.querySelectorAll('.main-nav a').forEach((link) => {
 const songsContainer = document.querySelector('#songs');
 const catalogueDialog = document.querySelector('#catalogue-dialog');
 const catalogueTriggers = document.querySelectorAll('#catalogue-trigger, #catalogue-trigger-mobile');
-const kboxReminderDialog = document.querySelector('#kbox-reminder-dialog');
 const dialog = document.querySelector('#request-dialog');
 const requestForm = document.querySelector('#request-form');
 const resultCount = document.querySelector('#result-count');
@@ -26,15 +25,9 @@ let isSubmitting = false;
 let isDownloading = false;
 
 catalogueTriggers.forEach((trigger) => trigger.addEventListener('click', () => {
-  kboxReminderDialog?.showModal();
   catalogueDialog?.showModal();
   search?.focus();
 }));
-
-// Page catalogue.html autonome (pas de dialog catalogue) : avertir des l'arrivee
-if (!catalogueDialog && songsContainer) {
-  kboxReminderDialog?.showModal();
-}
 
 function setDownloadStatus(text, state) {
   downloadStatuses.forEach((el) => {
