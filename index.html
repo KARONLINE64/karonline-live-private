@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <title>KaronlineLive</title>
+  <link rel="stylesheet" href="css/styles.css?v=4">
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .home-canvas {
+      aspect-ratio: 1664 / 936;
+      display: block;
+      height: min(100vh, calc(100vw * 936 / 1664));
+      position: relative;
+      width: min(100vw, calc(100vh * 1664 / 936));
+    }
+
+    .home-canvas img {
+      display: block;
+      height: 100%;
+      pointer-events: none;
+      width: 100%;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .catalogue-trigger {
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      inset: 3.1% auto auto 30.9%;
+      padding: 0;
+      position: absolute;
+      z-index: 1;
+      width: 8.8%;
+      height: 6%;
+    }
+
+    .catalogue-trigger:focus-visible {
+      border: 2px solid #fff;
+      border-radius: 5px;
+      outline: 2px solid #145cff;
+      outline-offset: 2px;
+    }
+
+    .download-trigger {
+      border-radius: 8px;
+      inset: 77.5% auto auto 1.6%;
+      position: absolute;
+      z-index: 1;
+      width: 24%;
+      height: 9%;
+    }
+
+    .download-trigger:focus-visible {
+      outline: 3px solid #fff;
+      outline-offset: 3px;
+    }
+    
+    .download-status {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 16px;
+      background: rgba(8, 14, 21, 0.95);
+      border: 1px solid #20323b;
+      border-radius: 6px;
+      color: #f4f7fb;
+      font-size: 13px;
+      max-width: 300px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 10;
+    }
+    
+    .download-status.visible {
+      opacity: 1;
+    }
+    
+    .download-status.success {
+      border-color: #4ade80;
+      color: #4ade80;
+    }
+    
+    .download-status.error {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+
+    .catalogue-dialog {
+      background: #080e15;
+      border: 1px solid #20323b;
+      color: #f4f7fb;
+      max-height: min(760px, calc(100vh - 32px));
+      padding: 28px;
+      width: min(900px, calc(100vw - 32px));
+    }
+
+    .catalogue-dialog::backdrop {
+      background: rgba(0, 0, 0, .78);
+    }
+
+    .catalogue-dialog-header {
+      align-items: start;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .catalogue-dialog h2 {
+      font: 600 40px var(--font-display);
+      margin: 0;
+    }
+
+    .catalogue-dialog .catalogue-toolbar {
+      padding-top: 20px;
+    }
+
+    .catalogue-dialog .song-list {
+      max-height: min(430px, 52vh);
+      overflow-y: auto;
+    }
+
+    @media (max-width: 760px) {
+      .catalogue-dialog {
+        padding: 22px 18px;
+      }
+
+      .catalogue-dialog h2 {
+        font-size: 34px;
+      }
+    }
+
+    /* Page d'accueil mobile : remplace l'image desktop par une mise en page reelle */
+    .mobile-home {
+      display: none;
+    }
+
+    @media (max-width: 640px) {
+      html, body {
+        overflow: auto;
+        height: auto;
+      }
+
+      .page {
+        display: none;
+      }
+
+      .mobile-home {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        padding: 28px 20px 40px;
+        gap: 26px;
+        background: radial-gradient(ellipse at 75% 0%, rgba(0,112,255,.18), transparent 45%), #030507;
+        color: var(--white, #f4f7fb);
+        font-family: var(--font-body, 'DM Sans', sans-serif);
+      }
+
+      .mobile-home .brand-row {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+        font-size: 32px;
+        font-weight: 600;
+      }
+
+      .mobile-home .brand-row span {
+        color: var(--blue, #145cff);
+      }
+
+      .mobile-home .tagline {
+        color: #e80055;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        margin-top: -18px;
+      }
+
+      .mobile-home .pitch {
+        font-size: 16px;
+        color: #d8dee5;
+        margin: 0;
+      }
+
+      .mobile-home h1 {
+        font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+        font-size: 44px;
+        font-weight: 600;
+        line-height: .95;
+        margin: 0;
+      }
+
+      .mobile-home h1 span {
+        color: var(--blue, #145cff);
+      }
+
+      .mobile-home .mobile-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .mobile-home .mobile-actions .button {
+        width: 100%;
+        font-size: 16px;
+        height: 52px;
+      }
+
+      .mobile-home .mobile-features {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+
+      .mobile-home .mobile-features li {
+        border: 1px solid var(--line, #20323b);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 12px;
+        color: #d8dee5;
+      }
+
+      .mobile-home .mobile-features li strong {
+        display: block;
+        color: #fff;
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+
+      #download-status {
+        position: static;
+        margin-top: 12px;
+        max-width: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="home-canvas">
+      <img src="assets/ACCUEIL_00.png" alt="KaronlineLive">
+      <button id="catalogue-trigger" class="catalogue-trigger" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog" aria-label="Ouvrir le catalogue de chansons"></button>
+      <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
+    </div>
+    <div id="download-status" class="download-status" aria-live="polite"></div>
+  </main>
+  <div class="mobile-home">
+    <div>
+      <p class="brand-row">Karonline<span>Live</span></p>
+      <p class="tagline">Le site de karaoké &amp; animation</p>
+    </div>
+    <p class="pitch">L'expérience karaoké ultime pour chanter seul ou entre amis.</p>
+    <h1>Karonline<span>Box</span></h1>
+    <div class="mobile-actions">
+      <button id="catalogue-trigger-mobile" class="button button-primary" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog">🎵 Voir le catalogue</button>
+      <button id="download-trigger-mobile" class="button button-primary" type="button" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)">⬇️ Télécharger KaronlineBox</button>
+    </div>
+    <ul class="mobile-features">
+      <li><strong>Karaoké pro</strong>Gestion complète des chansons, tonalités, favoris et file d'attente.</li>
+      <li><strong>Double écran</strong>Écran KJ + écran public indépendants.</li>
+      <li><strong>Mode KJ auto</strong>Enchaînement automatique avec break configurable.</li>
+      <li><strong>Solo ou groupe</strong>Parfait pour chanteurs solo, duos ou groupes.</li>
+    </ul>
+    <div id="download-status-mobile" class="download-status" aria-live="polite"></div>
+  </div>
+  <dialog id="catalogue-dialog" class="catalogue-dialog" aria-labelledby="catalogue-dialog-title">
+    <div class="catalogue-dialog-header">
+      <div>
+        <p class="eyebrow">KaronlineLive / Catalogue</p>
+        <h2 id="catalogue-dialog-title">Choisissez votre chanson</h2>
+      </div>
+      <button class="dialog-close" type="button" data-close-dialog="catalogue-dialog" aria-label="Fermer le catalogue">×</button>
+    </div>
+    <section class="catalogue-toolbar">
+      <label for="search">Rechercher un titre ou un artiste</label>
+      <input id="search" type="search" placeholder="Ex. Queen, Adele..." autocomplete="off">
+      <span id="result-count" aria-live="polite"></span>
+    </section>
+    <section class="song-list" aria-label="Titres disponibles">
+      <div id="songs" class="songs-grid"></div>
+      <p id="empty-state" class="empty-state" hidden>Aucun titre ne correspond a votre recherche.</p>
+    </section>
+  </dialog>
+  <dialog id="request-dialog" class="request-dialog">
+    <form id="request-form">
+      <button class="dialog-close" type="button" data-close-dialog="request-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">Demande de chanson</p><h2>Preparons votre passage</h2>
+      <label for="singer">Chanteur</label><input id="singer" name="singer" type="text" required>
+      <label for="artist">Artiste</label><input id="artist" name="artist" type="text" required>
+      <label for="title">Titre</label><input id="title" name="title" type="text" required>
+      <label for="key">Tonalite</label>
+      <select id="key" name="key">
+        <option value="-6">-6</option><option value="-5">-5</option><option value="-4">-4</option>
+        <option value="-3">-3</option><option value="-2">-2</option><option value="-1">-1</option>
+        <option value="0" selected>0</option>
+        <option value="1">+1</option><option value="2">+2</option><option value="3">+3</option>
+        <option value="4">+4</option><option value="5">+5</option><option value="6">+6</option>
+      </select>
+      <div class="request-actions">
+        <button class="button button-primary submit-button" type="submit">Envoyer</button>
+        <button class="button button-primary" type="button" data-close-dialog="request-dialog">Annuler</button>
+      </div>
+      <output id="request-result" class="request-result" aria-live="polite"></output>
+    </form>
+  </dialog>
+  <script src="js/config.js?v=5"></script>
+  <script src="js/app.js?v=5"></script>
+</body>
+</html>

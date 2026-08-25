@@ -1,0 +1,41 @@
+# Media libraries and copyrighted test media stay local.
+SERVER/
+SERVER_2/
+**/*.mp4
+**/*.mp3
+**/*.avi
+**/*.mkv
+**/*.zip
+**/*.7z
+**/*.rar
+
+# Generated application packages and local runtime data.
+**/build/
+**/dist/
+**/setup_output/
+**/.venv/
+**/.karonline_cache/
+**/__pycache__/
+**/*.py[cod]
+*.spec.bak
+
+# Downloadable installers are published separately, never committed.
+**/downloads/*.exe
+**/*_Setup.exe
+
+# Local operating-system files.
+desktop.ini
+Thumbs.db
+
+# Spec and build config files  
+KaronlineBox_V90/
+KaronlineBox_GST_*.spec
+KaronlineBox_V90.spec
+KaronlineBox_LAN_TEST_Setup.iss
+KaronlineBox_V90_Setup.iss
+
+# Diagnostic files
+BREAK_DIAG.txt
+gstreamer_plugin_scan.txt
+*.bak
+*_BACKUP.py
