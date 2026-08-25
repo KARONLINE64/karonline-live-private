@@ -1,23 +1,21 @@
-// Configuration KaronlineLive - Support LAN local + API cloud
+// Configuration KaronlineLive - Support LAN local + tunnel public
 
-// IP Tailscale du PC fixe hebergeant lan_server.py (utilisee quand le site est
-// charge depuis le domaine public karonlinelive.com, ou window.location.hostname
-// ne correspond pas a la machine LAN).
-const LAN_TAILSCALE_IP = '100.87.153.104';
+// URL publique HTTPS du serveur LAN, exposee via Cloudflare Tunnel (cloudflared)
+// depuis le PC fixe. Fonctionne depuis n'importe quel reseau, sans Tailscale.
+const LAN_TUNNEL_URL = 'https://api.karonlinelive.com';
 
 function isLanHostname(hostname) {
   return hostname === 'localhost' ||
          hostname.startsWith('192.168.') ||
          hostname.startsWith('10.') ||
-         hostname.startsWith('172.') ||
-         /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(hostname);
+         hostname.startsWith('172.');
 }
 
 const CONFIG = {
-  // Serveur LAN sur le réseau local ou via Tailscale (port 8765)
-  LAN_SERVER_URL: `http://${isLanHostname(window.location.hostname) ? window.location.hostname : LAN_TAILSCALE_IP}:8765`,
+  // Serveur LAN direct en dev local, sinon le tunnel public (port 8765 en local uniquement)
+  LAN_SERVER_URL: isLanHostname(window.location.hostname) ? `http://${window.location.hostname}:8765` : LAN_TUNNEL_URL,
   
-  // Fallback: API cloud (à implémenter future)
+  // Fallback: API cloud (a implementer future)
   CLOUD_API_URL: 'https://api.karonlinelive.com',
   
   ENDPOINTS: {
@@ -30,14 +28,12 @@ const CONFIG = {
   LAN_TIMEOUT: 3000
 };
 
-// Détecte si on est sur réseau local privé (inclut le CGNAT Tailscale 100.64.0.0/10)
+// Détecte si on est sur réseau local privé
 function isPrivateNetwork() {
-  return isLanHostname(window.location.hostname);
+  return true; // le tunnel public rend le serveur toujours joignable
 }
 
-// Ping le serveur LAN pour vérifier sa disponibilité.
-// Toujours tenté (même depuis karonlinelive.com) : le visiteur peut joindre
-// la machine via son IP Tailscale meme si la page vient d'un domaine public.
+// Ping le serveur (LAN direct ou tunnel public) pour vérifier sa disponibilité.
 async function checkLanServerAvailability() {
   try {
     const response = await Promise.race([
