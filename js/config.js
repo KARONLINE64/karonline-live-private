@@ -1,7 +1,21 @@
 // Configuration KaronlineLive - Support LAN local + API cloud
+
+// IP Tailscale du PC fixe hebergeant lan_server.py (utilisee quand le site est
+// charge depuis le domaine public karonlinelive.com, ou window.location.hostname
+// ne correspond pas a la machine LAN).
+const LAN_TAILSCALE_IP = '100.87.153.104';
+
+function isLanHostname(hostname) {
+  return hostname === 'localhost' ||
+         hostname.startsWith('192.168.') ||
+         hostname.startsWith('10.') ||
+         hostname.startsWith('172.') ||
+         /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(hostname);
+}
+
 const CONFIG = {
-  // Serveur LAN sur le réseau local (port 8765)
-  LAN_SERVER_URL: `http://${window.location.hostname === 'localhost' ? 'localhost' : window.location.hostname}:8765`,
+  // Serveur LAN sur le réseau local ou via Tailscale (port 8765)
+  LAN_SERVER_URL: `http://${isLanHostname(window.location.hostname) ? window.location.hostname : LAN_TAILSCALE_IP}:8765`,
   
   // Fallback: API cloud (à implémenter future)
   CLOUD_API_URL: 'https://api.karonlinelive.com',
@@ -18,18 +32,13 @@ const CONFIG = {
 
 // Détecte si on est sur réseau local privé (inclut le CGNAT Tailscale 100.64.0.0/10)
 function isPrivateNetwork() {
-  const hostname = window.location.hostname;
-  return hostname === 'localhost' || 
-         hostname.startsWith('192.168.') || 
-         hostname.startsWith('10.') ||
-         hostname.startsWith('172.') ||
-         /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(hostname);
+  return isLanHostname(window.location.hostname);
 }
 
-// Ping le serveur LAN pour vérifier sa disponibilité
+// Ping le serveur LAN pour vérifier sa disponibilité.
+// Toujours tenté (même depuis karonlinelive.com) : le visiteur peut joindre
+// la machine via son IP Tailscale meme si la page vient d'un domaine public.
 async function checkLanServerAvailability() {
-  if (!isPrivateNetwork()) return false;
-  
   try {
     const response = await Promise.race([
       fetch(`${CONFIG.LAN_SERVER_URL}/catalogue`, { method: 'GET' }),
@@ -45,7 +54,7 @@ async function checkLanServerAvailability() {
 
 // Determine le serveur à utiliser
 async function getActiveServerUrl() {
-  if (isPrivateNetwork() && await checkLanServerAvailability()) {
+  if (await checkLanServerAvailability()) {
     return CONFIG.LAN_SERVER_URL;
   }
   // Fallback future vers cloud API
