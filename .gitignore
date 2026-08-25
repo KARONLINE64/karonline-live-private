@@ -1,0 +1,22 @@
+# Media libraries and copyrighted test media stay local.
+SERVER/
+SERVER_2/
+**/*.mp4
+
+# Generated application packages and local runtime data.
+**/build/
+**/dist/
+**/setup_output/
+**/.venv/
+**/.karonline_cache/
+**/__pycache__/
+**/*.py[cod]
+*.spec.bak
+
+# Downloadable installers are published separately, never committed.
+**/downloads/*.exe
+**/*_Setup.exe
+
+# Local operating-system files.
+desktop.ini
+Thumbs.db
