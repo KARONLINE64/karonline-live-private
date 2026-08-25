@@ -1,8 +1,6 @@
-// Configuration KaronlineLive - Support LAN local + tunnel public
-
-// URL publique HTTPS du serveur LAN, exposee via Cloudflare Tunnel (cloudflared)
-// depuis le PC fixe. Fonctionne depuis n'importe quel reseau, sans Tailscale.
-const LAN_TUNNEL_URL = 'https://api.karonlinelive.com';
+// Configuration KaronlineLive - chaque visiteur se connecte a l'hote (KaronlineBox)
+// de son choix : plusieurs hotes peuvent tourner en meme temps, chacun chez soi.
+const HOST_URL_KEY = 'kl_host_url';
 
 function isLanHostname(hostname) {
   return hostname === 'localhost' ||
@@ -11,33 +9,49 @@ function isLanHostname(hostname) {
          hostname.startsWith('172.');
 }
 
+// URL du serveur de l'hote actuellement connecte (null si aucun configure)
+function getHostServerUrl() {
+  if (isLanHostname(window.location.hostname)) {
+    return `http://${window.location.hostname}:8765`;
+  }
+  return localStorage.getItem(HOST_URL_KEY);
+}
+
+// Enregistre l'hote choisi par ce visiteur (ex: xxxx.trycloudflare.com)
+function setHostServerUrl(input) {
+  const clean = input.trim().replace(/\/+$/, '');
+  if (!clean) return;
+  const withScheme = /^https?:\/\//i.test(clean) ? clean : `https://${clean}`;
+  localStorage.setItem(HOST_URL_KEY, withScheme);
+}
+
+function clearHostServerUrl() {
+  localStorage.removeItem(HOST_URL_KEY);
+}
+
 const CONFIG = {
-  // Serveur LAN direct en dev local, sinon le tunnel public (port 8765 en local uniquement)
-  LAN_SERVER_URL: isLanHostname(window.location.hostname) ? `http://${window.location.hostname}:8765` : LAN_TUNNEL_URL,
-  
-  // Fallback: API cloud (a implementer future)
-  CLOUD_API_URL: 'https://api.karonlinelive.com',
-  
   ENDPOINTS: {
     CATALOGUE: '/catalogue',
     REQUEST_DEMAND: '/request-demand',
     DOWNLOAD: '/download/karonlinebox'
   },
   
-  // Timeout pour détection serveur LAN (ms)
+  // Timeout pour détection serveur (ms)
   LAN_TIMEOUT: 3000
 };
 
 // Détecte si on est sur réseau local privé
 function isPrivateNetwork() {
-  return true; // le tunnel public rend le serveur toujours joignable
+  return true; // un hote (LAN ou tunnel) est toujours joignable une fois configure
 }
 
-// Ping le serveur (LAN direct ou tunnel public) pour vérifier sa disponibilité.
+// Ping le serveur de l'hote connecte pour vérifier sa disponibilité.
 async function checkLanServerAvailability() {
+  const url = getHostServerUrl();
+  if (!url) return false;
   try {
     const response = await Promise.race([
-      fetch(`${CONFIG.LAN_SERVER_URL}/catalogue`, { method: 'GET' }),
+      fetch(`${url}/catalogue`, { method: 'GET' }),
       new Promise((_, reject) => 
         setTimeout(() => reject(new Error('LAN timeout')), CONFIG.LAN_TIMEOUT)
       )
@@ -50,22 +64,18 @@ async function checkLanServerAvailability() {
 
 // Determine le serveur à utiliser
 async function getActiveServerUrl() {
-  if (await checkLanServerAvailability()) {
-    return CONFIG.LAN_SERVER_URL;
-  }
-  // Fallback future vers cloud API
-  return CONFIG.CLOUD_API_URL;
+  return getHostServerUrl();
 }
 
 // Helpers pour construire URLs
 function getRequestDemandUrl() {
-  return `${CONFIG.LAN_SERVER_URL}${CONFIG.ENDPOINTS.REQUEST_DEMAND}`;
+  return `${getHostServerUrl()}${CONFIG.ENDPOINTS.REQUEST_DEMAND}`;
 }
 
 function getCatalogueUrl() {
-  return `${CONFIG.LAN_SERVER_URL}${CONFIG.ENDPOINTS.CATALOGUE}`;
+  return `${getHostServerUrl()}${CONFIG.ENDPOINTS.CATALOGUE}`;
 }
 
 function getKaronlineBoxDownloadUrl() {
-  return `${CONFIG.LAN_SERVER_URL}${CONFIG.ENDPOINTS.DOWNLOAD}`;
+  return `${getHostServerUrl()}${CONFIG.ENDPOINTS.DOWNLOAD}`;
 }

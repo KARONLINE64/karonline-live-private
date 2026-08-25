@@ -301,6 +301,8 @@
       <div>
         <p class="eyebrow">KaronlineLive / Catalogue</p>
         <h2 id="catalogue-dialog-title">Choisissez votre chanson</h2>
+        <p class="host-status"></p>
+        <button class="host-change-link" type="button" data-change-host>Changer d'hôte</button>
       </div>
       <button class="dialog-close" type="button" data-close-dialog="catalogue-dialog" aria-label="Fermer le catalogue">×</button>
     </div>
@@ -334,6 +336,17 @@
         <button class="button button-primary" type="button" data-close-dialog="request-dialog">Annuler</button>
       </div>
       <output id="request-result" class="request-result" aria-live="polite"></output>
+    </form>
+  </dialog>
+  <dialog id="host-connect-dialog" class="host-connect-dialog">
+    <form id="host-connect-form">
+      <button class="dialog-close" type="button" data-close-dialog="host-connect-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">Connexion</p>
+      <h2>Rejoindre un hôte KaronlineBox</h2>
+      <p>Demandez à votre animateur son adresse ou code de connexion (ex. xxxx.trycloudflare.com), puis collez-la ici.</p>
+      <label for="host-url-input">Adresse de l'hôte</label>
+      <input id="host-url-input" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="xxxx.trycloudflare.com" required autocomplete="off">
+      <button class="button button-primary" type="submit">Se connecter</button>
     </form>
   </dialog>
   <script src="js/config.js?v=5"></script>

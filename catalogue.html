@@ -15,7 +15,7 @@
     </nav>
   </header>
   <main class="catalogue-page">
-    <section class="page-heading"><p class="eyebrow">KaronlineLive / Catalogue</p><h1>Choisissez votre chanson</h1><p>Une simulation locale du catalogue de test. Selectionnez un titre pour preparer une demande.</p></section>
+    <section class="page-heading"><p class="eyebrow">KaronlineLive / Catalogue</p><h1>Choisissez votre chanson</h1><p>Une simulation locale du catalogue de test. Selectionnez un titre pour preparer une demande.</p><p class="host-status"></p><button class="host-change-link" type="button" data-change-host>Changer d'hôte</button></section>
     <section class="catalogue-toolbar"><label for="search">Rechercher un titre ou un artiste</label><input id="search" type="search" placeholder="Ex. Queen, Adele..." autocomplete="off"><span id="result-count" aria-live="polite"></span></section>
     <section class="song-list" aria-label="Titres disponibles"><div id="songs" class="songs-grid"></div><p id="empty-state" class="empty-state" hidden>Aucun titre ne correspond a votre recherche.</p></section>
   </main>
@@ -39,6 +39,17 @@
         <button class="button button-primary" type="button" data-close-dialog="request-dialog">Annuler</button>
       </div>
       <output id="request-result" class="request-result" aria-live="polite"></output>
+    </form>
+  </dialog>
+  <dialog id="host-connect-dialog" class="host-connect-dialog">
+    <form id="host-connect-form">
+      <button class="dialog-close" type="button" data-close-dialog="host-connect-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">Connexion</p>
+      <h2>Rejoindre un hôte KaronlineBox</h2>
+      <p>Demandez à votre animateur son adresse ou code de connexion (ex. xxxx.trycloudflare.com), puis collez-la ici.</p>
+      <label for="host-url-input">Adresse de l'hôte</label>
+      <input id="host-url-input" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="xxxx.trycloudflare.com" required autocomplete="off">
+      <button class="button button-primary" type="submit">Se connecter</button>
     </form>
   </dialog>
   <footer class="site-footer"><span>KaronlineLive</span><span>Catalogue du serveur LAN</span></footer>

@@ -20,11 +20,46 @@ const emptyState = document.querySelector('#empty-state');
 const search = document.querySelector('#search');
 const downloadTriggers = document.querySelectorAll('#download-trigger, #download-trigger-mobile');
 const downloadStatuses = document.querySelectorAll('#download-status, #download-status-mobile');
+const hostDialog = document.querySelector('#host-connect-dialog');
+const hostForm = document.querySelector('#host-connect-form');
+const hostInput = document.querySelector('#host-url-input');
+const hostStatuses = document.querySelectorAll('.host-status');
+const hostChangeButtons = document.querySelectorAll('[data-change-host]');
 let songs = [];
 let isSubmitting = false;
 let isDownloading = false;
 
+function refreshHostStatus() {
+  const url = getHostServerUrl();
+  hostStatuses.forEach((el) => {
+    el.textContent = url ? `Connecté à : ${url.replace(/^https?:\/\//, '')}` : 'Non connecté à un hôte';
+  });
+}
+
+// Renvoie true si un hote est deja configure, sinon ouvre le dialog de connexion et renvoie false
+function ensureHostConnected() {
+  if (getHostServerUrl()) return true;
+  hostDialog?.showModal();
+  return false;
+}
+
+hostForm?.addEventListener('submit', (event) => {
+  event.preventDefault();
+  setHostServerUrl(hostInput.value);
+  hostInput.value = '';
+  refreshHostStatus();
+  hostDialog?.close();
+  loadCatalogue();
+});
+
+hostChangeButtons.forEach((button) => button.addEventListener('click', () => {
+  hostDialog?.showModal();
+}));
+
+refreshHostStatus();
+
 catalogueTriggers.forEach((trigger) => trigger.addEventListener('click', () => {
+  if (!ensureHostConnected()) return;
   catalogueDialog?.showModal();
   search?.focus();
 }));
@@ -40,6 +75,7 @@ function setDownloadStatus(text, state) {
 
 downloadTriggers.forEach((trigger) => trigger.addEventListener('click', async () => {
   if (isDownloading) return;
+  if (!ensureHostConnected()) return;
   
   isDownloading = true;
   downloadTriggers.forEach((t) => t.disabled = true);
@@ -88,10 +124,14 @@ document.querySelectorAll('[data-close-dialog]').forEach((button) => {
 
 async function loadCatalogue() {
   if (!songsContainer) return;
+  if (!getHostServerUrl()) {
+    songsContainer.innerHTML = '<p class="empty-state">🔌 Connectez-vous à un hôte KaronlineBox pour voir son catalogue.</p>';
+    return;
+  }
   try {
     const isAvailable = await checkLanServerAvailability();
     if (!isAvailable) {
-      songsContainer.innerHTML = '<p class="empty-state">⚠️ Serveur LAN indisponible. Le serveur local doit être lancé pour charger le catalogue (python lan_server.py --port 8765).</p>';
+      songsContainer.innerHTML = '<p class="empty-state">⚠️ Serveur indisponible. Vérifiez que KaronlineBox et le tunnel de votre hôte sont actifs.</p>';
       return;
     }
     const response = await fetch(getCatalogueUrl());
@@ -216,6 +256,11 @@ search?.addEventListener('input', () => {
 
 function escapeHtml(value) {
   return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' })[character]);
+}
+
+// Page catalogue.html autonome (pas de dialog catalogue) : demander la connexion des l'arrivee
+if (!catalogueDialog && songsContainer && !getHostServerUrl()) {
+  hostDialog?.showModal();
 }
 
 loadCatalogue();
