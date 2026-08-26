@@ -94,22 +94,12 @@ function setDownloadStatus(text, state) {
 
 downloadTriggers.forEach((trigger) => trigger.addEventListener('click', async () => {
   if (isDownloading) return;
-  if (!ensureHostConnected()) return;
   
   isDownloading = true;
   downloadTriggers.forEach((t) => t.disabled = true);
-  setDownloadStatus('⏳ Vérification du serveur LAN...');
+  setDownloadStatus('⏳ Téléchargement en cours...');
   
   try {
-    const lanAvailable = await checkLanServerAvailability();
-    if (!lanAvailable) {
-      setDownloadStatus('❌ Serveur LAN indisponible. Assurez-vous que le serveur est lancé: python lan_server.py --port 8765', 'error');
-      isDownloading = false;
-      downloadTriggers.forEach((t) => t.disabled = false);
-      return;
-    }
-    
-    setDownloadStatus('⏳ Téléchargement en cours...');
     const downloadUrl = getKaronlineBoxDownloadUrl();
     
     // Créer un lien invisible et cliquer dessus pour télécharger
@@ -129,7 +119,7 @@ downloadTriggers.forEach((trigger) => trigger.addEventListener('click', async ()
     }, 3000);
   } catch (error) {
     console.error('Erreur téléchargement:', error);
-    setDownloadStatus('❌ Erreur lors du téléchargement. Vérifiez votre connexion au serveur LAN.', 'error');
+    setDownloadStatus('❌ Erreur lors du téléchargement. Réessayez.', 'error');
     isDownloading = false;
     downloadTriggers.forEach((t) => t.disabled = false);
   }

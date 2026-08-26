@@ -106,5 +106,7 @@ function getCatalogueUrl() {
 }
 
 function getKaronlineBoxDownloadUrl() {
-  return `${getHostServerUrl()}${CONFIG.ENDPOINTS.DOWNLOAD}`;
+  // Le programme d'installation est le meme pour tout le monde : toujours
+  // servi par le serveur central, jamais par l'hote de session en cours.
+  return `https://api.karonlinelive.com${CONFIG.ENDPOINTS.DOWNLOAD}`;
 }
