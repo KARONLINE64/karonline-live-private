@@ -107,5 +107,5 @@ function getCatalogueUrl() {
 
 function getKaronlineBoxDownloadUrl() {
   // Le programme d'installation doit rester disponible meme si le tunnel API est coupe.
-  return 'downloads/KaronlineBox_V90_Setup_20260826_UAFIX.exe';
+  return 'downloads/KaronlineBox_V90_Setup_20260826_LANFIX.exe';
 }
