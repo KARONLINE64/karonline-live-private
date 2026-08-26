@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KaronlineLive</title>
+  <link rel="stylesheet" href="css/styles.css?v=3">
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .page {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .home-canvas {
+      aspect-ratio: 1664 / 936;
+      display: block;
+      height: min(100vh, calc(100vw * 936 / 1664));
+      position: relative;
+      width: min(100vw, calc(100vh * 1664 / 936));
+    }
+
+    .home-canvas img {
+      display: block;
+      height: 100%;
+      pointer-events: none;
+      width: 100%;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .catalogue-trigger {
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      inset: 3.1% auto auto 30.9%;
+      padding: 0;
+      position: absolute;
+      z-index: 1;
+      width: 8.8%;
+      height: 6%;
+    }
+
+    .catalogue-trigger:focus-visible {
+      border: 2px solid #fff;
+      border-radius: 5px;
+      outline: 2px solid #145cff;
+      outline-offset: 2px;
+    }
+
+    .download-trigger {
+      border-radius: 8px;
+      inset: 77.5% auto auto 1.6%;
+      position: absolute;
+      z-index: 1;
+      width: 24%;
+      height: 9%;
+    }
+
+    .download-trigger:focus-visible {
+      outline: 3px solid #fff;
+      outline-offset: 3px;
+    }
+    
+    .download-status {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 16px;
+      background: rgba(8, 14, 21, 0.95);
+      border: 1px solid #20323b;
+      border-radius: 6px;
+      color: #f4f7fb;
+      font-size: 13px;
+      max-width: 300px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 10;
+    }
+    
+    .download-status.visible {
+      opacity: 1;
+    }
+    
+    .download-status.success {
+      border-color: #4ade80;
+      color: #4ade80;
+    }
+    
+    .download-status.error {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+
+    .catalogue-dialog {
+      background: #080e15;
+      border: 1px solid #20323b;
+      color: #f4f7fb;
+      max-height: min(760px, calc(100vh - 32px));
+      padding: 28px;
+      width: min(900px, calc(100vw - 32px));
+    }
+
+    .catalogue-dialog::backdrop {
+      background: rgba(0, 0, 0, .78);
+    }
+
+    .catalogue-dialog-header {
+      align-items: start;
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .catalogue-dialog h2 {
+      font: 600 40px var(--font-display);
+      margin: 0;
+    }
+
+    .catalogue-dialog .catalogue-toolbar {
+      padding-top: 20px;
+    }
+
+    .catalogue-dialog .song-list {
+      max-height: min(430px, 52vh);
+      overflow-y: auto;
+    }
+
+    @media (max-width: 760px) {
+      .catalogue-dialog {
+        padding: 22px 18px;
+      }
+
+      .catalogue-dialog h2 {
+        font-size: 34px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="home-canvas">
+      <img src="assets/ACCUEIL_00.png" alt="KaronlineLive">
+      <button id="catalogue-trigger" class="catalogue-trigger" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog" aria-label="Ouvrir le catalogue de chansons"></button>
+      <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
+    </div>
+    <div id="download-status" class="download-status" aria-live="polite"></div>
+  </main>
+  <dialog id="catalogue-dialog" class="catalogue-dialog" aria-labelledby="catalogue-dialog-title">
+    <div class="catalogue-dialog-header">
+      <div>
+        <p class="eyebrow">KaronlineLive / Catalogue</p>
+        <h2 id="catalogue-dialog-title">Choisissez votre chanson</h2>
+      </div>
+      <button class="dialog-close" type="button" data-close-dialog="catalogue-dialog" aria-label="Fermer le catalogue">×</button>
+    </div>
+    <section class="catalogue-toolbar">
+      <label for="search">Rechercher un titre ou un artiste</label>
+      <input id="search" type="search" placeholder="Ex. Queen, Adele..." autocomplete="off">
+      <span id="result-count" aria-live="polite"></span>
+    </section>
+    <section class="song-list" aria-label="Titres disponibles">
+      <div id="songs" class="songs-grid"></div>
+      <p id="empty-state" class="empty-state" hidden>Aucun titre ne correspond a votre recherche.</p>
+    </section>
+  </dialog>
+  <dialog id="request-dialog" class="request-dialog">
+    <form id="request-form">
+      <button class="dialog-close" type="button" data-close-dialog="request-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">Demande de chanson</p><h2>Preparons votre passage</h2>
+      <label for="singer">Chanteur</label><input id="singer" name="singer" type="text" required>
+      <label for="artist">Artiste</label><input id="artist" name="artist" type="text" required>
+      <label for="title">Titre</label><input id="title" name="title" type="text" required>
+      <label for="key">Tonalite</label>
+      <select id="key" name="key">
+        <option value="-6">-6</option><option value="-5">-5</option><option value="-4">-4</option>
+        <option value="-3">-3</option><option value="-2">-2</option><option value="-1">-1</option>
+        <option value="0" selected>0</option>
+        <option value="1">+1</option><option value="2">+2</option><option value="3">+3</option>
+        <option value="4">+4</option><option value="5">+5</option><option value="6">+6</option>
+      </select>
+      <div class="request-actions">
+        <button class="button button-primary submit-button" type="submit">Envoyer</button>
+        <button class="button button-primary" type="button" data-close-dialog="request-dialog">Annuler</button>
+      </div>
+      <output id="request-result" class="request-result" aria-live="polite"></output>
+    </form>
+  </dialog>
+  <script src="js/config.js?v=5"></script>
+  <script src="js/app.js?v=5"></script>
+</body>
+</html>
