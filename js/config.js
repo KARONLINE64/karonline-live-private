@@ -29,6 +29,35 @@ function clearHostServerUrl() {
   localStorage.removeItem(HOST_URL_KEY);
 }
 
+// Resout un nom de session simple (ex: soiree-marc) via l'annuaire central,
+// ou accepte directement une URL/adresse si l'utilisateur en colle une.
+async function connectToHost(input) {
+  const clean = input.trim().replace(/\/+$/, '');
+  if (!clean) return { ok: false, error: 'EMPTY' };
+
+  // Une adresse contenant un point ou "://" est traitee comme une URL directe.
+  if (/[:.]/.test(clean)) {
+    setHostServerUrl(clean);
+    return { ok: true };
+  }
+
+  // Sinon, c'est un nom de session a resoudre via l'annuaire central.
+  try {
+    const response = await fetch(`https://api.karonlinelive.com/session/${encodeURIComponent(clean.toLowerCase())}`);
+    if (!response.ok) {
+      return { ok: false, error: 'SESSION NOT FOUND' };
+    }
+    const data = await response.json();
+    if (!data.host_url) {
+      return { ok: false, error: 'SESSION NOT FOUND' };
+    }
+    setHostServerUrl(data.host_url);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'NETWORK' };
+  }
+}
+
 const CONFIG = {
   ENDPOINTS: {
     CATALOGUE: '/catalogue',

@@ -43,9 +43,28 @@ function ensureHostConnected() {
   return false;
 }
 
-hostForm?.addEventListener('submit', (event) => {
+hostForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
-  setHostServerUrl(hostInput.value);
+  const submitBtn = hostForm.querySelector('button[type="submit"]');
+  const errorEl = hostForm.querySelector('.host-connect-error');
+  if (errorEl) errorEl.textContent = '';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Connexion...';
+
+  const result = await connectToHost(hostInput.value);
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Se connecter';
+
+  if (!result.ok) {
+    if (errorEl) {
+      errorEl.textContent = result.error === 'SESSION NOT FOUND'
+        ? '❌ Nom de session introuvable. Vérifiez avec votre animateur.'
+        : '❌ Connexion impossible. Réessayez.';
+    }
+    return;
+  }
+
   hostInput.value = '';
   refreshHostStatus();
   hostDialog?.close();

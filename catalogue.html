@@ -46,9 +46,10 @@
       <button class="dialog-close" type="button" data-close-dialog="host-connect-dialog" aria-label="Fermer">×</button>
       <p class="eyebrow">Connexion</p>
       <h2>Rejoindre un hôte KaronlineBox</h2>
-      <p>Demandez à votre animateur son adresse ou code de connexion (ex. xxxx.trycloudflare.com), puis collez-la ici.</p>
-      <label for="host-url-input">Adresse de l'hôte</label>
-      <input id="host-url-input" type="text" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="xxxx.trycloudflare.com" required autocomplete="off">
+      <p>Demandez à votre animateur le <strong>nom de session</strong> qu'il a choisi (ex. soiree-marc), puis tapez-le ici.</p>
+      <label for="host-url-input">Nom de session</label>
+      <input id="host-url-input" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="soiree-marc" required autocomplete="off">
+      <p class="host-connect-error" aria-live="polite"></p>
       <button class="button button-primary" type="submit">Se connecter</button>
     </form>
   </dialog>
