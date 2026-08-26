@@ -2406,19 +2406,13 @@ class MainWindow(QMainWindow):
             )
             self.session_status_label.setText("● Nom de session déjà utilisé")
             return
-        if name_available is None:
-            QMessageBox.warning(
-                self,
-                "VÉRIFICATION IMPOSSIBLE",
-                "Impossible de vérifier si ce nom de session existe déjà.\n\n"
-                "Vérifiez la connexion à api.karonlinelive.com puis réessayez.",
-                QMessageBox.Ok,
-            )
-            self.session_status_label.setText("● Vérification du nom impossible")
-            return
-
         self.session_start_btn.setEnabled(False)
-        self.session_status_label.setText("● Démarrage du serveur LAN...")
+        if name_available is None:
+            self.session_status_label.setText(
+                "● Vérification du nom impossible, tentative d'enregistrement..."
+            )
+        else:
+            self.session_status_label.setText("● Démarrage du serveur LAN...")
 
         karonline_kj_dir = Path(__file__).resolve().parent.parent
 

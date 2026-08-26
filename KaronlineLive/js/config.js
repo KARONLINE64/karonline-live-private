@@ -67,5 +67,5 @@ function getCatalogueUrl() {
 }
 
 function getKaronlineBoxDownloadUrl() {
-  return 'downloads/KaronlineBox_V90_Setup_20260826_QT.exe';
+  return 'downloads/KaronlineBox_V90_Setup_20260826_SESSIONFIX.exe';
 }

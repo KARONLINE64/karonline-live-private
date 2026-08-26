@@ -20,9 +20,6 @@ OutputBaseFilename=KaronlineBox_V90_Setup
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
-SetupIconFile=ui\kb_logo_luxury.ico
-WizardSmallImageFile=ui\kb_logo_luxury.png
-WizardImageFile=ui\kb_logo_luxury.png
 UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
