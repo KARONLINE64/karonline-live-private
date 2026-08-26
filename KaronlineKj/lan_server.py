@@ -3,7 +3,9 @@ from __future__ import annotations
 import argparse
 import json
 import ipaddress
+import re
 import socket
+import time
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -12,6 +14,12 @@ from urllib.parse import unquote, urlparse
 
 
 DEFAULT_LIBRARY = Path(__file__).resolve().parent.parent / "SERVER"
+
+# Annuaire de sessions en memoire : nom choisi par le KJ -> URL de son tunnel.
+# Sert uniquement sur l'instance centrale (api.karonlinelive.com).
+SESSIONS: dict[str, dict] = {}
+SESSION_TTL_SECONDS = 24 * 3600
+SESSION_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,39}$")
 
 
 def detect_lan_ip():
@@ -32,23 +40,38 @@ class RequestHandler(BaseHTTPRequestHandler):
         return
 
     def _send_cors_headers(self):
-        """Autoriser le site local ou un client du reseau prive sur le port 8000."""
+        """Autoriser le site local, reseau prive, Tailscale, et domaine public karonlinelive.com."""
         origin = self.headers.get("Origin", "")
         parsed = urlparse(origin)
         hostname = parsed.hostname or ""
+        allow_origin = False
+        
         try:
-            is_private_origin = ipaddress.ip_address(hostname).is_private
+            origin_ip = ipaddress.ip_address(hostname)
+            is_private_origin = (
+                origin_ip.is_private
+                or origin_ip in ipaddress.ip_network("100.64.0.0/10")
+            )
+            # Allow HTTP from private networks and Tailscale
+            if parsed.scheme == "http" and is_private_origin:
+                allow_origin = True
         except ValueError:
-            is_private_origin = hostname == "localhost"
-
-        if parsed.scheme == "http" and parsed.port == 8000 and is_private_origin:
+            # Allow localhost
+            if hostname == "localhost":
+                allow_origin = True
+            # Allow HTTPS from karonlinelive.com domain
+            elif parsed.scheme == "https" and (hostname == "karonlinelive.com" or hostname.endswith(".karonlinelive.com")):
+                allow_origin = True
+        
+        if allow_origin:
             self.send_header("Access-Control-Allow-Origin", origin)
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
 
     def do_OPTIONS(self):
         """Gérer les requêtes de préflight CORS"""
-        if urlparse(self.path).path in {"/catalogue", "/request-demand"}:
+        path = urlparse(self.path).path
+        if path in {"/catalogue", "/request-demand", "/download/karonlinebox", "/session/register"} or path.startswith("/session/"):
             self.send_response(200)
             self._send_cors_headers()
             self.end_headers()
@@ -66,23 +89,78 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        if urlparse(self.path).path != "/catalogue":
-            self._send_json(404, {"error": "NOT FOUND"})
+        path = urlparse(self.path).path
+
+        # Endpoint: GET /session/<nom> - resoudre un nom de session vers l'URL de l'hote
+        if path.startswith("/session/"):
+            name = unquote(path[len("/session/"):]).strip().casefold()
+            entry = self._active_session(name)
+            if entry is None:
+                self._send_json(404, {"error": "SESSION NOT FOUND"})
+                return
+            self._send_json(200, {"host_url": entry["host_url"]})
             return
 
-        songs = []
-        for file_path in self.server.library.iterdir():
-            if not file_path.is_file() or file_path.suffix.casefold() != ".mp4":
-                continue
-            artist, separator, title = file_path.stem.partition("-")
-            songs.append({
-                "artist": artist.strip() if separator else "Artiste inconnu",
-                "title": title.strip() if separator else artist.strip(),
-            })
-        songs.sort(key=lambda song: (song["artist"].casefold(), song["title"].casefold()))
-        self._send_json(200, songs)
+        # Endpoint: GET /catalogue
+        if path == "/catalogue":
+            songs = []
+            for file_path in self.server.library.iterdir():
+                if not file_path.is_file() or file_path.suffix.casefold() != ".mp4":
+                    continue
+                artist, separator, title = file_path.stem.partition("-")
+                songs.append({
+                    "artist": artist.strip() if separator else "Artiste inconnu",
+                    "title": title.strip() if separator else artist.strip(),
+                })
+            songs.sort(key=lambda song: (song["artist"].casefold(), song["title"].casefold()))
+            self._send_json(200, songs)
+            return
+        
+        # Endpoint: GET /download/karonlinebox - Télécharger l'installateur KaronlineBox
+        if path == "/download/karonlinebox":
+            # Chercher le fichier setup dans les emplacements courants
+            setup_paths = [
+                self.server.library.parent / "KaronlineBox_Install" / "KaronlineBox_Installer.exe",
+                self.server.library.parent / "KaronlineKj" / "setup.exe",
+                Path.cwd() / "setup.exe",
+                Path.cwd().parent / "setup.exe",
+                Path.cwd() / "KaronlineBox_V90_Setup.exe",
+                self.server.library.parent / "KaronlineBox_V90_Setup.exe",
+            ]
+            
+            setup_file = None
+            for path_candidate in setup_paths:
+                if path_candidate.is_file():
+                    setup_file = path_candidate
+                    break
+            
+            if setup_file is None:
+                self._send_json(404, {"error": "KaronlineBox installer not found"})
+                return
+            
+            # Envoyer le fichier exe
+            file_size = setup_file.stat().st_size
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "application/x-msdownload")
+                self.send_header("Content-Disposition", f'attachment; filename="{setup_file.name}"')
+                self.send_header("Content-Length", str(file_size))
+                self._send_cors_headers()
+                self.end_headers()
+                with setup_file.open("rb") as source:
+                    while chunk := source.read(1024 * 1024):
+                        self.wfile.write(chunk)
+                print(f"DOWNLOAD KARONLINEBOX = {setup_file.name}", flush=True)
+            except (BrokenPipeError, ConnectionResetError, OSError) as exc:
+                print(f"DOWNLOAD ERROR = {exc}", flush=True)
+            return
+        
+        self._send_json(404, {"error": "NOT FOUND"})
 
     def do_POST(self):
+        if self.path == "/session/register":
+            self._register_session()
+            return
         if self.path == "/request-demand":
             self._relay_demand()
             return
@@ -132,6 +210,45 @@ class RequestHandler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError, OSError) as exc:
             print(f"TRANSFER ERROR = {exc}", flush=True)
 
+    def _register_session(self):
+        """Enregistre un nom de session -> URL d'hote (annuaire en memoire)."""
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            body = self.rfile.read(length)
+            request = json.loads(body.decode("utf-8"))
+            name = str(request.get("name", "")).strip().casefold()
+            host_url = str(request.get("host_url", "")).strip().rstrip("/")
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "INVALID REQUEST"})
+            return
+
+        if not SESSION_NAME_RE.match(name):
+            self._send_json(400, {"error": "INVALID SESSION NAME"})
+            return
+
+        parsed_host = urlparse(host_url)
+        if parsed_host.scheme != "https" or not parsed_host.hostname:
+            self._send_json(400, {"error": "INVALID HOST URL"})
+            return
+
+        if self._active_session(name) is not None:
+            self._send_json(409, {"error": "SESSION NAME TAKEN", "name": name})
+            return
+
+        SESSIONS[name] = {"host_url": host_url, "ts": time.time()}
+        print(f"SESSION REGISTERED = {name} -> {host_url}", flush=True)
+        self._send_json(200, {"status": "ok", "name": name})
+
+    @staticmethod
+    def _active_session(name: str):
+        entry = SESSIONS.get(name)
+        if entry is None:
+            return None
+        if time.time() - entry["ts"] > SESSION_TTL_SECONDS:
+            SESSIONS.pop(name, None)
+            return None
+        return entry
+
     def _relay_demand(self):
         try:
             length = int(self.headers.get("Content-Length", "0"))
@@ -156,7 +273,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         except ValueError:
             self._send_json(400, {"error": "INVALID CLIENT IP"})
             return
-        if not parsed_client_ip.is_private:
+        is_tailscale_client = parsed_client_ip in ipaddress.ip_network("100.64.0.0/10")
+        if not parsed_client_ip.is_private and not is_tailscale_client:
             self._send_json(400, {"error": "CLIENT IP MUST BE PRIVATE"})
             return
         print(f"DEMAND RECEIVED FROM = {client_ip}", flush=True)
@@ -164,6 +282,19 @@ class RequestHandler(BaseHTTPRequestHandler):
         
         # Toujours relayer vers KaronlineBox qui écoute sur 127.0.0.1:8766
         # Peu importe que la demande vienne du navigateur ou d'un client local
+        # Test de connexion rapide d'abord: si KaronlineBox n'ecoute pas, on
+        # repond tout de suite pour eviter la course avec le timeout Cloudflare.
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.settimeout(0.3)
+        try:
+            probe.connect(("127.0.0.1", self.server.request_port))
+            probe.close()
+        except OSError as exc:
+            probe.close()
+            print(f"DEMAND RELAY ERROR = {exc}", flush=True)
+            self._send_json(409, {"error": "KARONLINEBOX UNAVAILABLE"})
+            return
+
         forward = json.dumps({
             "singer": singer,
             "artist": artist,
@@ -177,7 +308,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             method="POST",
         )
         try:
-            with urllib.request.urlopen(target, timeout=10) as response:
+            with urllib.request.urlopen(target, timeout=2) as response:
                 if response.status != 202:
                     raise RuntimeError(f"HTTP {response.status}")
             print(f"DEMAND RELAYED TO KARONLINEBOX = 127.0.0.1:{self.server.request_port}", flush=True)
@@ -185,7 +316,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         except (urllib.error.URLError, TimeoutError, OSError, RuntimeError) as exc:
             # Si le relais vers KaronlineBox échoue
             print(f"DEMAND RELAY ERROR = {exc}", flush=True)
-            self._send_json(504, {"error": "KARONLINEBOX UNAVAILABLE"})
+            self._send_json(409, {"error": "KARONLINEBOX UNAVAILABLE"})
 
 
 def main():

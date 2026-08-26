@@ -1,0 +1,198 @@
+🚀 DEPLOYMENT QUICK START - karonlinelive.com
+═════════════════════════════════════════════════════════════════
+
+✅ PRÊT: Code poussé vers GitHub
+⏳ MAINTENANT: 3 actions pour mettre en ligne
+
+───────────────────────────────────────────────────────────────────
+1️⃣  CONFIGURER LE DOMAINE (5 min)
+───────────────────────────────────────────────────────────────────
+
+⚙️ Chez votre registrar (OVH, Gandi, etc.):
+
+1. Connexion → Aller sur vos domaines
+2. Chercher: karonlinelive.com
+3. Gérer → DNS
+4. Modifier les enregistrements A:
+
+   ┌────────────────────────────────────────────────────────────┐
+   │ Type  │ Nom               │ Valeur                 │ Proxy │
+   ├───────┼───────────────────┼────────────────────────┼───────┤
+   │ A     │ karonlinelive.com │ 185.199.108.153        │ DNS only │
+   │ A     │ karonlinelive.com │ 185.199.109.153        │ DNS only │
+   │ A     │ karonlinelive.com │ 185.199.110.153        │ DNS only │
+   │ A     │ karonlinelive.com │ 185.199.111.153        │ DNS only │
+   │ CNAME │ www               │ KARONLINE64.github.io  │ DNS only │
+   └────────────────────────────────────────────────────────────┘
+
+   Ne pas mettre karonlinelive.com ou www dans un Cloudflare Tunnel.
+   Le tunnel Cloudflare doit etre reserve a api.karonlinelive.com.
+
+5. Sauvegarder
+6. ⏳ Attendre 5-30 min (propagation DNS)
+
+💡 Tester: nslookup karonlinelive.com
+
+───────────────────────────────────────────────────────────────────
+2️⃣  GITHUB PAGES (5 min)
+───────────────────────────────────────────────────────────────────
+
+⚠️ LE REPO DOIT ÊTRE PUBLIC
+
+Steps:
+1. Aller sur: https://github.com/KARONLINE64/karonline-live-private
+2. Settings (bouton gear en haut à droite)
+3. Danger Zone → Visibility → "Change to public"
+4. Confirmer
+
+✅ Repo est maintenant PUBLIC
+
+Ensuite - Activer GitHub Pages:
+1. Settings → Pages (à gauche)
+2. Source: "Deploy from a branch"
+3. Branch: "main" | Folder: "root"
+4. Custom domain: "karonlinelive.com"
+5. ✅ "Enforce HTTPS" (auto après quelques min)
+6. Save
+
+💡 GitHub créera le certificat SSL automatiquement (5-10 min)
+
+───────────────────────────────────────────────────────────────────
+3️⃣  LANCER LE SERVEUR LOCAL (Permanent)
+───────────────────────────────────────────────────────────────────
+
+Sur votre PC FIXE (celui avec le dossier SERVER):
+
+Ouvrir PowerShell:
+```powershell
+cd C:\Users\KAR_ONLINE\Documents\AHMED\KARONLINE\KARONLINEKJ_V1.1_BUILD\KaronlineKj
+python lan_server.py --port 8765
+```
+
+✅ Vous devriez voir:
+```
+SERVER STARTED
+SERVER IP = 192.168.x.x
+SERVER PORT = 8765
+MUSIC FOLDER = C:\Users\...\SERVER
+```
+
+⚠️ IMPORTANT: Gardez ce terminal OUVERT (ou utilisez Task Scheduler pour auto-start)
+
+───────────────────────────────────────────────────────────────────
+4️⃣  TESTER (Now!)
+───────────────────────────────────────────────────────────────────
+
+🌐 Ouvrir dans un navigateur:
+   https://karonlinelive.com
+
+✅ Vous devriez voir:
+   - Page d'accueil avec image ACCUEIL_00.png
+   - Bouton "Catalogue" (bleu)
+   - Bouton "Télécharger KaronlineBox" (gauche bas)
+
+🧪 Test Catalogue:
+   1. Cliquer "Catalogue"
+   2. Dialog s'ouvre avec liste de chansons
+   3. (Ou message "Serveur LAN indisponible" si pas lancé)
+
+🧪 Test Demande:
+   1. Cliquer sur une chanson
+   2. Remplir: Chanteur, Tonalité (-6 à +6)
+   3. Cliquer "Envoyer"
+   4. Message: "Demande reçue! Merci..."
+   5. Vérifier KaronlineBox (port 8766) a reçu la demande
+
+🧪 Test Téléchargement:
+   1. Cliquer "Télécharger KaronlineBox"
+   2. Fichier setup.exe téléchargé
+   (Nécessite setup.exe dans: C:\Users\...\KaronlineKj\setup.exe)
+
+───────────────────────────────────────────────────────────────────
+⚠️  RÉSOLUTION DE PROBLÈMES
+───────────────────────────────────────────────────────────────────
+
+❌ "karonlinelive.com" ne fonctionne pas
+   → Attendre propagation DNS (30 min max)
+   → Vérifier nslookup karonlinelive.com
+
+❌ "HTTPS not available"
+   → GitHub Pages génère le certificat (5-10 min après custom domain)
+   → Tenter https:// plutôt que http://
+
+❌ "Serveur LAN indisponible" même serveur lancé
+   → Vérifier: python lan_server.py --port 8765 est ACTIF
+   → Vérifier: SERVER/ existe et contient des .mp4
+
+❌ "KaronlineBox téléchargement échoue"
+   → Placer setup.exe ici: C:\Users\...\KaronlineKj\setup.exe
+   → Ou: C:\Users\...\KARONLINEKJ_V1.1_BUILD\setup.exe
+
+❌ Demandes ne s'affichent pas dans KaronlineBox
+   → Vérifier port 8766 est disponible
+   → Vérifier KaronlineBox est lancée
+   → Vérifier: python lan_server.py fonctionne
+
+───────────────────────────────────────────────────────────────────
+📊 CHECKLIST DE VÉRIFICATION
+───────────────────────────────────────────────────────────────────
+
+✅ Repo GitHub est PUBLIC
+✅ GitHub Pages activé → karonlinelive.com
+✅ Certificat SSL/HTTPS actif
+✅ DNS pointe vers les 4 IP GitHub Pages, en DNS only
+✅ Serveur LAN lancé sur port 8765
+✅ Dossier SERVER/ existe avec MP4
+✅ js/config.js configure pour LAN (dynamique)
+
+───────────────────────────────────────────────────────────────────
+📞 COMMANDES UTILES
+───────────────────────────────────────────────────────────────────
+
+# Vérifier DNS
+nslookup karonlinelive.com
+
+# Tester API LAN
+curl http://192.168.x.x:8765/catalogue
+
+# Vérifier port 8765 actif
+netstat -ano | findstr :8765
+
+# Redémarrer serveur (PowerShell, Ctrl+C puis relancer)
+python lan_server.py --port 8765
+
+───────────────────────────────────────────────────────────────────
+🎯 RÉSUMÉ - ARCHITECTURE EN PRODUCTION
+───────────────────────────────────────────────────────────────────
+
+┌─────────────────────────────────────────────────────────────┐
+│  UTILISATEUR (Internet)                                      │
+│  https://karonlinelive.com ✅ HTTPS (GitHub Pages)         │
+└────────────────────┬────────────────────────────────────────┘
+                     │
+          ┌──────────┴──────────┐
+          │                     │
+     HTTPS OK            Localhost Network
+     (Static Site)       (LAN only)
+          │                     │
+          ↓                     ↓
+  ┌──────────────┐    ┌─────────────────────┐
+  │  GitHub      │    │  PC Fixe (8765)     │
+  │  Pages CDN   │    │  - Catalogue        │
+  │              │    │  - Demandes         │
+  │  index.html  │    │  - Téléchargements  │
+  │  catalogue   │    │                     │
+  │  js/css      │    │  SERVER/ folder:    │
+  │              │    │  - MP4 files        │
+  └──────────────┘    └─────────────────────┘
+
+DNS: karonlinelive.com → 185.199.108.153 / 109.153 / 110.153 / 111.153 (GitHub Pages, DNS only)
+Frontend: HTTPS, CDN global, ultra-rapide
+Backend: LAN local, sécurisé, accès réseau privé
+
+───────────────────────────────────────────────────────────────────
+✨ C'EST BON! Vous êtes prêt à déployer.
+
+Questions? Vérifiez DEPLOYMENT.md au repo.
+
+Good luck! 🚀

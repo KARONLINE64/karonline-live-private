@@ -18,12 +18,53 @@ const requestForm = document.querySelector('#request-form');
 const resultCount = document.querySelector('#result-count');
 const emptyState = document.querySelector('#empty-state');
 const search = document.querySelector('#search');
+const downloadTrigger = document.querySelector('#download-trigger');
+const downloadStatus = document.querySelector('#download-status');
 let songs = [];
 let isSubmitting = false;
+let isDownloading = false;
 
 catalogueTrigger?.addEventListener('click', () => {
   catalogueDialog?.showModal();
   search?.focus();
+});
+
+downloadTrigger?.addEventListener('click', async () => {
+  if (isDownloading) return;
+  
+  isDownloading = true;
+  downloadTrigger.disabled = true;
+  downloadStatus.textContent = '⏳ Vérification du serveur LAN...';
+  downloadStatus.classList.add('visible');
+  downloadStatus.classList.remove('error', 'success');
+  
+  try {
+    downloadStatus.textContent = '⏳ Téléchargement en cours...';
+    const downloadUrl = getKaronlineBoxDownloadUrl();
+    
+    // Créer un lien invisible et cliquer dessus pour télécharger
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = 'KaronlineBox_Setup.exe';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    downloadStatus.textContent = '✅ Téléchargement lancé! Vérifiez votre dossier Téléchargements.';
+    downloadStatus.classList.add('success');
+    
+    setTimeout(() => {
+      isDownloading = false;
+      downloadTrigger.disabled = false;
+      downloadStatus.classList.remove('visible', 'success');
+    }, 3000);
+  } catch (error) {
+    console.error('Erreur téléchargement:', error);
+    downloadStatus.textContent = '❌ Erreur lors du téléchargement. Vérifiez votre connexion au serveur LAN.';
+    downloadStatus.classList.add('error');
+    isDownloading = false;
+    downloadTrigger.disabled = false;
+  }
 });
 
 document.querySelectorAll('[data-close-dialog]').forEach((button) => {
@@ -35,12 +76,18 @@ document.querySelectorAll('[data-close-dialog]').forEach((button) => {
 async function loadCatalogue() {
   if (!songsContainer) return;
   try {
+    const isAvailable = await checkLanServerAvailability();
+    if (!isAvailable) {
+      songsContainer.innerHTML = '<p class="empty-state">⚠️ Serveur LAN indisponible. Le serveur local doit être lancé pour charger le catalogue (python lan_server.py --port 8765).</p>';
+      return;
+    }
     const response = await fetch(getCatalogueUrl());
     if (!response.ok) throw new Error('Catalogue indisponible');
     songs = await response.json();
     renderSongs(songs);
   } catch (error) {
-    songsContainer.innerHTML = '<p class="empty-state">Le catalogue du serveur est momentanement indisponible.</p>';
+    console.error('Erreur chargement catalogue:', error);
+    songsContainer.innerHTML = '<p class="empty-state">⚠️ Serveur LAN indisponible. Assurez-vous que le serveur est lancé: python lan_server.py --port 8765</p>';
   }
 }
 
@@ -104,6 +151,15 @@ requestForm?.addEventListener('submit', async (event) => {
   output.classList.add('is-visible');
   
   try {
+    const lanAvailable = await checkLanServerAvailability();
+    if (!lanAvailable) {
+      output.textContent = '❌ Serveur LAN indisponible. Vérifiez que le serveur est lancé.';
+      output.classList.add('is-visible');
+      submitButton.disabled = false;
+      isSubmitting = false;
+      return;
+    }
+    
     const response = await fetch(getRequestDemandUrl(), {
       method: 'POST',
       headers: {

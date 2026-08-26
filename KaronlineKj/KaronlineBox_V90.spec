@@ -6,13 +6,19 @@ from PyInstaller.utils.hooks import collect_submodules
 # l'installation système utilisée par core/gstreamer_player.py).
 
 binaries = []
+datas = []
+hiddenimports = collect_submodules("core") + [
+    "PySide6.QtCore",
+    "PySide6.QtGui",
+    "PySide6.QtWidgets",
+]
 
 a = Analysis(
     ["app.py"],
     pathex=["."],
     binaries=binaries,
-    datas=[],
-    hiddenimports=[],
+    datas=datas,
+    hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

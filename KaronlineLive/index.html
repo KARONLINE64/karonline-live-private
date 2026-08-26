@@ -78,6 +78,36 @@
       outline: 3px solid #fff;
       outline-offset: 3px;
     }
+    
+    .download-status {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 16px;
+      background: rgba(8, 14, 21, 0.95);
+      border: 1px solid #20323b;
+      border-radius: 6px;
+      color: #f4f7fb;
+      font-size: 13px;
+      max-width: 300px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 10;
+    }
+    
+    .download-status.visible {
+      opacity: 1;
+    }
+    
+    .download-status.success {
+      border-color: #4ade80;
+      color: #4ade80;
+    }
+    
+    .download-status.error {
+      border-color: #ef4444;
+      color: #ef4444;
+    }
 
     .catalogue-dialog {
       background: #080e15;
@@ -129,8 +159,9 @@
     <div class="home-canvas">
       <img src="assets/ACCUEIL_00.png" alt="KaronlineLive">
       <button id="catalogue-trigger" class="catalogue-trigger" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog" aria-label="Ouvrir le catalogue de chansons"></button>
-      <a class="download-trigger" href="downloads/KaronlineBox_V90_Setup.exe" download aria-label="Télécharger KaronlineBox pour Windows"></a>
+      <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
     </div>
+    <div id="download-status" class="download-status" aria-live="polite"></div>
   </main>
   <dialog id="catalogue-dialog" class="catalogue-dialog" aria-labelledby="catalogue-dialog-title">
     <div class="catalogue-dialog-header">
@@ -172,7 +203,7 @@
       <output id="request-result" class="request-result" aria-live="polite"></output>
     </form>
   </dialog>
-  <script src="js/config.js?v=2"></script>
-  <script src="js/app.js?v=4"></script>
+  <script src="js/config.js?v=5"></script>
+  <script src="js/app.js?v=5"></script>
 </body>
 </html>

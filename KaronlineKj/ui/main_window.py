@@ -1,6 +1,10 @@
 ﻿from pathlib import Path
 import json
+import re
 import socket
+import subprocess
+import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -916,6 +920,11 @@ class MainWindow(QMainWindow):
                 )
             )
         nav.addWidget(logo)
+
+        app_title = QLabel("KaronlineBox")
+        app_title.setStyleSheet("font-size:22px;font-weight:700;color:#f1f4f7;padding-left:8px;")
+        nav.addWidget(app_title)
+
         nav.addStretch()
 
         self.demands_btn = QPushButton("DEMANDES")
@@ -1318,6 +1327,39 @@ class MainWindow(QMainWindow):
 
         self.settings_tabs.addTab(page, "MODE KJ")
 
+        # ONGLET SESSION — demarre le serveur LAN + tunnel public et
+        # enregistre un nom de session simple pour les invites distants.
+        page = QWidget()
+        session_layout = QVBoxLayout(page)
+
+        session_info = QLabel(
+            "Choisissez un nom simple (ex. soiree-marc) et cliquez sur "
+            "DÉMARRER : ce nom sera à partager avec vos invités sur "
+            "karonlinelive.com."
+        )
+        session_info.setWordWrap(True)
+        session_layout.addWidget(session_info)
+
+        session_form = QFormLayout()
+        self.session_name_input = QLineEdit()
+        self.session_name_input.setPlaceholderText("soiree-marc")
+        session_form.addRow("NOM DE SESSION", self.session_name_input)
+        session_layout.addLayout(session_form)
+
+        session_buttons = QHBoxLayout()
+        self.session_start_btn = QPushButton("▶ DÉMARRER LA SESSION")
+        self.session_start_btn.clicked.connect(self.start_public_session)
+        session_buttons.addWidget(self.session_start_btn)
+        session_layout.addLayout(session_buttons)
+
+        self.session_status_label = QLabel("● Session non démarrée")
+        self.session_status_label.setWordWrap(True)
+        self.session_status_label.setStyleSheet("color:#aeb7bf;font-size:13px;padding-top:8px;")
+        session_layout.addWidget(self.session_status_label)
+        session_layout.addStretch()
+
+        self.settings_tabs.addTab(page, "SESSION")
+
         box_layout.addWidget(self.settings_tabs)
         settings_layout.addWidget(box)
         self.queue_area_stack = QStackedWidget()
@@ -1531,73 +1573,6 @@ class MainWindow(QMainWindow):
 
         bottom = QHBoxLayout()
 
-        # V21 TEST MODE ONLY — does not alter V20 queue logic.
-        self.test_request_button = QPushButton("🧪 SIMULER REQUEST")
-        self.test_request_button.setToolTip(
-            "Mode test : injecter une request distante simulée"
-        )
-        self.test_request_button.clicked.connect(
-            self.open_test_request_dialog
-        )
-        self.test_request_button.setStyleSheet(
-            """
-            QPushButton {
-                color:#f1f4f7;
-                background:#17232d;
-                border:1px solid #344b5d;
-                padding:6px 12px;
-                border-radius:4px;
-            }
-            QPushButton:hover {
-                background:#203544;
-            }
-            """
-        )
-        bottom.addWidget(self.test_request_button)
-        self.test_request_10_button = QPushButton("20 REQUESTS TEST")
-        self.test_request_10_button.setToolTip(
-            "Mode test : injecter 20 requests prédéfinies"
-        )
-        self.test_request_10_button.clicked.connect(
-            self.inject_20_test_requests
-        )
-        self.test_request_10_button.setStyleSheet(
-            """
-            QPushButton {
-                color:#f1f4f7;
-                background:#17232d;
-                border:1px solid #344b5d;
-                padding:6px 12px;
-                border-radius:4px;
-            }
-            QPushButton:hover {
-                background:#203544;
-            }
-            """
-        )
-        bottom.addWidget(self.test_request_10_button)
-
-        self.lan_test_button = QPushButton("🧪 TESTER LA DEMANDE LAN")
-        self.lan_test_button.setToolTip(
-            "Prototype temporaire : demander un MP4 via l'API LAN et le lire dans KaronlineBox"
-        )
-        self.lan_test_button.clicked.connect(self.open_lan_test_dialog)
-        self.lan_test_button.setStyleSheet(
-            """
-            QPushButton {
-                color:#f1f4f7;
-                background:#17232d;
-                border:1px solid #344b5d;
-                padding:6px 12px;
-                border-radius:4px;
-            }
-            QPushButton:hover {
-                background:#203544;
-            }
-            """
-        )
-        bottom.addWidget(self.lan_test_button)
-
         kb = QGroupBox("CHANGEUR DE TONALITÉ")
         kl = QHBoxLayout(kb)
         self.key_buttons = {}
@@ -1630,10 +1605,6 @@ class MainWindow(QMainWindow):
 
         outer.addLayout(grid)
         outer.addLayout(bottom)
-
-        outer.addWidget(
-            QLabel("KaronlineBox")
-        )
 
     def _favorite_link_item(self, display_text, data):
         item = QListWidgetItem()
@@ -2365,6 +2336,7 @@ class MainWindow(QMainWindow):
 
             existing_btn = QPushButton("Nom existant")
             new_btn = QPushButton("Nouveau nom")
+            delete_btn = QPushButton("✕ Supprimer")
 
             # V31: every request is initially handled as "Nouveau nom".
             # The KJ may explicitly choose "Nom existant" when appropriate.
@@ -2375,9 +2347,15 @@ class MainWindow(QMainWindow):
                 "QPushButton{border:1px solid #00a7ff;"
                 "color:#00a7ff;font-weight:700;}"
             )
+            delete_btn.setStyleSheet(
+                "QPushButton{border:1px solid #7a3030;"
+                "color:#ff6b6b;font-weight:700;}"
+                "QPushButton:hover{background:#251719;}"
+            )
 
             action_layout.addWidget(existing_btn)
             action_layout.addWidget(new_btn)
+            action_layout.addWidget(delete_btn)
 
             existing_btn.clicked.connect(
                 lambda checked=False, r=row:
@@ -2387,8 +2365,171 @@ class MainWindow(QMainWindow):
                 lambda checked=False, r=row:
                 self.validate_request(r, True)
             )
+            delete_btn.clicked.connect(
+                lambda checked=False, r=row:
+                self.delete_request(r)
+            )
 
             self.requests_table.setCellWidget(row, 4, actions)
+
+    def delete_request(self, row):
+        """Supprime une demande de DEMANDES sans l'ajouter a la file d'attente."""
+        if not (0 <= row < len(self.requests)):
+            return
+        removed = self.requests.pop(row)
+        self.refresh_requests()
+        self.update_demands_indicator()
+        self.set_status(f"● Demande supprimée : {removed.get('title', '')}", True)
+
+    def start_public_session(self):
+        """Demarre lan_server.py + un tunnel Cloudflare et enregistre le nom de session."""
+        name = re.sub(
+            r"[^a-z0-9-]", "-",
+            self.session_name_input.text().strip().lower()
+        ).strip("-")
+
+        if not name:
+            QMessageBox.warning(
+                self, "NOM DE SESSION MANQUANT",
+                "Entrez un nom de session (ex. soiree-marc)."
+            )
+            return
+
+        name_available = self._session_name_available(name)
+        if name_available is False:
+            QMessageBox.warning(
+                self,
+                "NOM DE SESSION DÉJÀ UTILISÉ",
+                f"Le nom de session « {name} » est déjà actif.\n\n"
+                "Choisissez un autre nom pour éviter que les invités rejoignent le mauvais hôte.",
+                QMessageBox.Ok,
+            )
+            self.session_status_label.setText("● Nom de session déjà utilisé")
+            return
+        if name_available is None:
+            QMessageBox.warning(
+                self,
+                "VÉRIFICATION IMPOSSIBLE",
+                "Impossible de vérifier si ce nom de session existe déjà.\n\n"
+                "Vérifiez la connexion à api.karonlinelive.com puis réessayez.",
+                QMessageBox.Ok,
+            )
+            self.session_status_label.setText("● Vérification du nom impossible")
+            return
+
+        self.session_start_btn.setEnabled(False)
+        self.session_status_label.setText("● Démarrage du serveur LAN...")
+
+        karonline_kj_dir = Path(__file__).resolve().parent.parent
+
+        if not self._is_port_open("127.0.0.1", 8765):
+            subprocess.Popen(
+                [sys.executable, "lan_server.py", "--port", "8765"],
+                cwd=str(karonline_kj_dir),
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+
+        cloudflared = Path.home() / "AppData" / "Local" / "cloudflared" / "cloudflared.exe"
+        if not cloudflared.is_file():
+            self.session_start_btn.setEnabled(True)
+            self.session_status_label.setText(
+                f"● cloudflared introuvable ({cloudflared})"
+            )
+            return
+
+        self._tunnel_log = Path(tempfile.gettempdir()) / "kbox_tunnel.log"
+        self._tunnel_log.unlink(missing_ok=True)
+        subprocess.Popen(
+            [str(cloudflared), "tunnel", "--url", "http://localhost:8765"],
+            stderr=open(self._tunnel_log, "w", encoding="utf-8"),
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+
+        self.session_status_label.setText("● Ouverture du tunnel public...")
+        self._session_pending_name = name
+        self._session_wait_ticks = 0
+        self._session_timer = QTimer(self)
+        self._session_timer.timeout.connect(self._poll_tunnel_log)
+        self._session_timer.start(1000)
+
+    @staticmethod
+    def _is_port_open(host, port):
+        probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        probe.settimeout(0.3)
+        try:
+            probe.connect((host, port))
+            return True
+        except OSError:
+            return False
+        finally:
+            probe.close()
+
+    def _poll_tunnel_log(self):
+        self._session_wait_ticks += 1
+        text = self._tunnel_log.read_text(encoding="utf-8", errors="ignore") if self._tunnel_log.exists() else ""
+        match = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", text)
+
+        if not match:
+            if self._session_wait_ticks >= 30:
+                self._session_timer.stop()
+                self.session_start_btn.setEnabled(True)
+                self.session_status_label.setText(
+                    "● Impossible d'ouvrir le tunnel (délai dépassé)."
+                )
+            return
+
+        self._session_timer.stop()
+        host_url = match.group(0)
+
+        try:
+            payload = json.dumps({
+                "name": self._session_pending_name,
+                "host_url": host_url,
+            }).encode("utf-8")
+            request = urllib.request.Request(
+                "https://api.karonlinelive.com/session/register",
+                data=payload,
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=10) as response:
+                if response.status != 200:
+                    raise RuntimeError(f"HTTP {response.status}")
+            self.session_status_label.setText(
+                f"● Session active : « {self._session_pending_name} » "
+                "— partagez ce nom à vos invités sur karonlinelive.com"
+            )
+            self.set_status(f"● Session « {self._session_pending_name} » démarrée", True)
+        except urllib.error.HTTPError as exc:
+            if exc.code == 409:
+                QMessageBox.warning(
+                    self,
+                    "NOM DE SESSION DÉJÀ UTILISÉ",
+                    f"Le nom de session « {self._session_pending_name} » vient d'être pris.\n\n"
+                    "Choisissez un autre nom pour éviter que les invités rejoignent le mauvais hôte.",
+                    QMessageBox.Ok,
+                )
+                self.session_status_label.setText("● Nom de session déjà utilisé")
+            else:
+                self.session_status_label.setText(f"● Erreur d'enregistrement : HTTP {exc.code}")
+        except (urllib.error.URLError, TimeoutError, OSError, RuntimeError) as exc:
+            self.session_status_label.setText(f"● Erreur d'enregistrement : {exc}")
+        finally:
+            self.session_start_btn.setEnabled(True)
+
+    def _session_name_available(self, name):
+        url = f"https://api.karonlinelive.com/session/{name}"
+        try:
+            with urllib.request.urlopen(url, timeout=5) as response:
+                return response.status == 404
+        except urllib.error.HTTPError as exc:
+            if exc.code == 404:
+                return True
+            if exc.code == 200:
+                return False
+            return None
+        except (urllib.error.URLError, TimeoutError, OSError):
+            return None
 
     def _known_singer_names(self):
         names = set()
