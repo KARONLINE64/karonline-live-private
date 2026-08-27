@@ -109,6 +109,18 @@ function authFeedback(id, message, isError) {
   output.classList.add('is-visible');
 }
 
+function togglePasswordVisibility(button) {
+  const inputId = button.dataset.passwordToggle;
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  const shouldShow = input.type === 'password';
+  input.type = shouldShow ? 'text' : 'password';
+  button.innerHTML = shouldShow ? '&#128065;&#x338;' : '&#128065;';
+  button.setAttribute('aria-label', shouldShow ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+  button.setAttribute('aria-pressed', String(shouldShow));
+}
+
 async function authValidateStoredSession() {
   const state = authReadState();
   if (!state.token || !state.email) return true;
@@ -218,21 +230,14 @@ function initAuthPage() {
   document.querySelectorAll('[data-logout]').forEach((button) => {
     button.addEventListener('click', handleLogout);
   });
-  document.querySelectorAll('[data-password-toggle]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const input = document.querySelector(`#${button.dataset.passwordToggle}`);
-      if (!input) return;
-      const visible = input.type === 'text';
-      input.type = visible ? 'password' : 'text';
-      button.innerHTML = visible ? '&#128065;' : '&#128065;&#x338;';
-      button.setAttribute('aria-label', visible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
-      button.setAttribute('aria-pressed', String(!visible));
-    });
-  });
-
   authRenderUI();
   authValidateStoredSession();
 }
+
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-password-toggle]');
+  if (button) togglePasswordVisibility(button);
+});
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initAuthPage);
