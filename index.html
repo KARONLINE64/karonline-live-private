@@ -275,19 +275,35 @@
     <div class="home-canvas">
       <img src="assets/ACCUEIL_00.png" alt="KaronlineLive">
       <button id="catalogue-trigger" class="catalogue-trigger" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog" aria-label="Ouvrir le catalogue de chansons"></button>
-      <a class="download-trigger" href="downloads/KaronlineBox_V90_Setup_20260826_LANFIX.exe" download aria-label="Télécharger KaronlineBox pour Windows" title="Télécharger KaronlineBox pour Windows"></a>
+      <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
     </div>
     <div id="download-status" class="download-status" aria-live="polite"></div>
   </main>
+  <div class="account-zone auth-overlay">
+    <div data-auth="guest" class="account-actions">
+      <a class="button account-link" href="#" data-open-auth="login-dialog">Se connecter</a>
+      <a class="button button-primary account-link" href="#" data-open-auth="register-dialog">S'enregistrer</a>
+    </div>
+    <div data-auth="member" class="account-chip-row" hidden>
+      <span class="account-chip">Compte : <b data-account-email></b><small data-account-card></small><button type="button" class="account-logout" data-logout>Déconnexion</button></span>
+    </div>
+  </div>
   <div class="mobile-home">
     <div>
       <p class="brand-row">Karonline<span>Live</span></p>
       <p class="tagline">Le site de karaoké &amp; animation</p>
     </div>
-    <p class="pitch">Une nouvelle façon de vivre le karaoké</p>
+    <p class="pitch">L'expérience karaoké ultime pour chanter seul ou entre amis.</p>
     <h1>Karonline<span>Box</span></h1>
     <div class="mobile-actions">
       <button id="catalogue-trigger-mobile" class="button button-primary" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog">🎵 Voir le catalogue</button>
+      <div data-auth="guest" class="mobile-auth-actions">
+        <button class="button" type="button" data-open-auth="login-dialog">Se connecter</button>
+        <button class="button button-primary" type="button" data-open-auth="register-dialog">S'enregistrer</button>
+      </div>
+      <div data-auth="member" class="account-chip-row" hidden>
+        <span class="account-chip">Compte : <b data-account-email></b><small data-account-card></small><button type="button" class="account-logout" data-logout>Déconnexion</button></span>
+      </div>
     </div>
     <ul class="mobile-features">
       <li><strong>Karaoké pro</strong>Gestion complète des chansons, tonalités, favoris et file d'attente.</li>
@@ -347,10 +363,44 @@
       <label for="host-url-input">Nom de session</label>
       <input id="host-url-input" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="soiree-marc" required autocomplete="off">
       <p class="host-connect-error" aria-live="polite"></p>
-      <button class="button button-primary" type="submit">Participer</button>
+      <button class="button button-primary" type="submit">Se connecter</button>
     </form>
   </dialog>
-  <script src="js/config.js?v=9"></script>
-  <script src="js/app.js?v=9"></script>
+  <dialog id="register-dialog" class="auth-dialog">
+    <form id="register-form">
+      <button class="dialog-close" type="button" data-close-dialog="register-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">KaronlineLive</p><h2>S'enregistrer</h2>
+      <label for="reg-email">Adresse mail (identifiant)</label>
+      <input id="reg-email" name="email" type="email" required autocomplete="email" placeholder="vous@exemple.com">
+      <label for="reg-password">Mot de passe</label>
+      <input id="reg-password" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="8 caractères minimum">
+      <label for="reg-card">Carte bancaire <small>(optionnel)</small></label>
+      <input id="reg-card" name="card" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="Optionnel pendant la phase de test">
+      <p class="auth-note">Vos futures sessions KaronlineBox seront rattachées à ce compte pour la facturation. Phase tests amis/famille : aucun prélèvement, seuls les 4 derniers chiffres sont mémorisés.</p>
+      <output id="register-result" class="request-result" aria-live="polite"></output>
+      <div class="request-actions">
+        <button class="button button-primary submit-button" type="submit">Créer mon compte</button>
+        <button class="button button-primary" type="button" data-close-dialog="register-dialog">Annuler</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="login-dialog" class="auth-dialog">
+    <form id="login-form">
+      <button class="dialog-close" type="button" data-close-dialog="login-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">KaronlineLive</p><h2>Se connecter</h2>
+      <label for="login-email">Adresse mail</label>
+      <input id="login-email" name="email" type="email" required autocomplete="username" placeholder="vous@exemple.com">
+      <label for="login-password">Mot de passe</label>
+      <input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+      <output id="login-result" class="request-result" aria-live="polite"></output>
+      <div class="request-actions">
+        <button class="button button-primary submit-button" type="submit">Connexion</button>
+        <button class="button button-primary" type="button" data-close-dialog="login-dialog">Annuler</button>
+      </div>
+    </form>
+  </dialog>
+  <script src="js/config.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
+  <script src="js/auth.js?v=1"></script>
 </body>
 </html>

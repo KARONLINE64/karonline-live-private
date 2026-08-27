@@ -39,3 +39,14 @@ BREAK_DIAG.txt
 gstreamer_plugin_scan.txt
 *.bak
 *_BACKUP.py
+
+# Comptes/jetons runtime KJ (mots de passe hachés + bearer tokens) - JAMAIS committé
+accounts.json
+tokens.json
+accounts.tmp
+tokens.tmp
+
+# Sorties de vérification locales
+*.verify.log
+*.log
+!CHANGELOG*

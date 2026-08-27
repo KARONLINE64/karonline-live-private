@@ -54,7 +54,7 @@ hostForm?.addEventListener('submit', async (event) => {
   const result = await connectToHost(hostInput.value);
 
   submitBtn.disabled = false;
-  submitBtn.textContent = 'Participer';
+  submitBtn.textContent = 'Se connecter';
 
   if (!result.ok) {
     if (errorEl) {

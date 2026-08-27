@@ -106,6 +106,7 @@ function getCatalogueUrl() {
 }
 
 function getKaronlineBoxDownloadUrl() {
-  // Le programme d'installation doit rester disponible meme si le tunnel API est coupe.
-  return 'downloads/KaronlineBox_V90_Setup_20260826_LANFIX.exe';
+  // Le programme d'installation est le meme pour tout le monde : toujours
+  // servi par le serveur central, jamais par l'hote de session en cours.
+  return `https://api.karonlinelive.com${CONFIG.ENDPOINTS.DOWNLOAD}`;
 }

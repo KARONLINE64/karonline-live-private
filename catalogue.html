@@ -14,7 +14,7 @@
     <a class="brand" href="index.html">Karonline<span>Live</span></a>
     <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav">Menu</button>
     <nav id="main-nav" class="main-nav" aria-label="Navigation principale">
-      <a href="index.html#about">A propos</a><a class="active" href="catalogue.html">Catalogue</a><a href="index.html#offer">Offre bundle</a><a href="index.html#subscribe">S'abonner</a><a href="index.html#login">Se connecter</a><a href="index.html#downloads">Telechargements</a><a class="button button-primary" href="index.html#trial">Essai gratuit</a>
+      <a href="index.html#about">A propos</a><a class="active" href="catalogue.html">Catalogue</a><a href="index.html#offer">Offre bundle</a><a href="#" data-open-auth="login-dialog">Se connecter</a><a href="#" data-open-auth="register-dialog">S'enregistrer</a><a href="index.html#downloads">Telechargements</a><a class="button button-primary" href="index.html#trial">Essai gratuit</a>
     </nav>
   </header>
   <main class="catalogue-page">
@@ -53,11 +53,50 @@
       <label for="host-url-input">Nom de session</label>
       <input id="host-url-input" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="soiree-marc" required autocomplete="off">
       <p class="host-connect-error" aria-live="polite"></p>
-      <button class="button button-primary" type="submit">Participer</button>
+      <button class="button button-primary" type="submit">Se connecter</button>
     </form>
   </dialog>
+  <dialog id="register-dialog" class="auth-dialog">
+    <form id="register-form">
+      <button class="dialog-close" type="button" data-close-dialog="register-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">KaronlineLive</p><h2>S'enregistrer</h2>
+      <label for="reg-email">Adresse mail (identifiant)</label>
+      <input id="reg-email" name="email" type="email" required autocomplete="email" placeholder="vous@exemple.com">
+      <label for="reg-password">Mot de passe</label>
+      <input id="reg-password" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="8 caractères minimum">
+      <label for="reg-card">Carte bancaire <small>(optionnel)</small></label>
+      <input id="reg-card" name="card" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="Optionnel pendant la phase de test">
+      <p class="auth-note">Vos futures sessions KaronlineBox seront rattachées à ce compte pour la facturation. Phase tests amis/famille : aucun prélèvement, seuls les 4 derniers chiffres sont mémorisés.</p>
+      <output id="register-result" class="request-result" aria-live="polite"></output>
+      <div class="request-actions">
+        <button class="button button-primary submit-button" type="submit">Créer mon compte</button>
+        <button class="button button-primary" type="button" data-close-dialog="register-dialog">Annuler</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="login-dialog" class="auth-dialog">
+    <form id="login-form">
+      <button class="dialog-close" type="button" data-close-dialog="login-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">KaronlineLive</p><h2>Se connecter</h2>
+      <label for="login-email">Adresse mail</label>
+      <input id="login-email" name="email" type="email" required autocomplete="username" placeholder="vous@exemple.com">
+      <label for="login-password">Mot de passe</label>
+      <input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+      <output id="login-result" class="request-result" aria-live="polite"></output>
+      <div class="request-actions">
+        <button class="button button-primary submit-button" type="submit">Connexion</button>
+        <button class="button button-primary" type="button" data-close-dialog="login-dialog">Annuler</button>
+      </div>
+    </form>
+  </dialog>
+  <div class="account-zone">
+    <div data-auth="member" class="account-chip-row" hidden>
+      <span class="account-chip">Compte : <b data-account-email></b><small data-account-card></small><button type="button" class="account-logout" data-logout>Déconnexion</button></span>
+    </div>
+  </div>
   <footer class="site-footer"><span>KaronlineLive</span><span>Catalogue du serveur LAN</span></footer>
-  <script src="js/config.js?v=7"></script>
-  <script src="js/app.js?v=7"></script>
+  <script src="js/config.js?v=6"></script>
+  <script src="js/app.js?v=6"></script>
+  <script src="js/auth.js?v=1"></script>
 </body>
 </html>

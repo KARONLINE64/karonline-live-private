@@ -30,6 +30,8 @@ from core.lan_config import (
     LAN_TEST_SERVER,
 )
 from core.lan_request_receiver import LanRequestReceiver
+from core.central_auth import CentralAuthClient
+from ui.auth_dialog import AuthDialog
 
 STYLE = """
 QMainWindow,QWidget{background:#05090d;color:#f1f4f7;font-family:"Segoe UI";}
@@ -64,6 +66,10 @@ class MainWindow(QMainWindow):
         self.public_bg_label = None
         self.public_warning_label = None
         self.settings = QSettings("Karonline", "KaronlineKJ")
+
+        # Compte KJ (API centrale) : jeton persistant ; favoris/réglages locaux.
+        self.central_auth = CentralAuthClient(self.settings)
+        self._central_session_ok = False
 
         # V45 — actual RÉGLAGES runtime state.
         self.public_bg_files = []
@@ -1347,6 +1353,9 @@ class MainWindow(QMainWindow):
         session_layout.addLayout(session_form)
 
         session_buttons = QHBoxLayout()
+        self.account_btn = QPushButton("👤 COMPTE : non connecté")
+        self.account_btn.clicked.connect(self.open_account_dialog)
+        session_buttons.addWidget(self.account_btn)
         self.session_start_btn = QPushButton("▶ DÉMARRER LA SESSION")
         self.session_start_btn.clicked.connect(self.start_public_session)
         session_buttons.addWidget(self.session_start_btn)
@@ -1572,6 +1581,27 @@ class MainWindow(QMainWindow):
         self._update_kj_video_width()
 
         bottom = QHBoxLayout()
+
+        self.lan_test_button = QPushButton("🧪 TESTER LA DEMANDE LAN")
+        self.lan_test_button.setToolTip(
+            "Prototype temporaire : demander un MP4 via l'API LAN et le lire dans KaronlineBox"
+        )
+        self.lan_test_button.clicked.connect(self.open_lan_test_dialog)
+        self.lan_test_button.setStyleSheet(
+            """
+            QPushButton {
+                color:#f1f4f7;
+                background:#17232d;
+                border:1px solid #344b5d;
+                padding:6px 12px;
+                border-radius:4px;
+            }
+            QPushButton:hover {
+                background:#203544;
+            }
+            """
+        )
+        bottom.addWidget(self.lan_test_button)
 
         kb = QGroupBox("CHANGEUR DE TONALITÉ")
         kl = QHBoxLayout(kb)
@@ -2383,6 +2413,12 @@ class MainWindow(QMainWindow):
 
     def start_public_session(self):
         """Demarre lan_server.py + un tunnel Cloudflare et enregistre le nom de session."""
+        if not self.ensure_central_login():
+            self.set_status(
+                "● Connexion au compte requise pour démarrer une session",
+                False,
+            )
+            return
         name = re.sub(
             r"[^a-z0-9-]", "-",
             self.session_name_input.text().strip().lower()
@@ -2395,24 +2431,8 @@ class MainWindow(QMainWindow):
             )
             return
 
-        name_available = self._session_name_available(name)
-        if name_available is False:
-            QMessageBox.warning(
-                self,
-                "NOM DE SESSION DÉJÀ UTILISÉ",
-                f"Le nom de session « {name} » est déjà actif.\n\n"
-                "Choisissez un autre nom pour éviter que les invités rejoignent le mauvais hôte.",
-                QMessageBox.Ok,
-            )
-            self.session_status_label.setText("● Nom de session déjà utilisé")
-            return
         self.session_start_btn.setEnabled(False)
-        if name_available is None:
-            self.session_status_label.setText(
-                "● Vérification du nom impossible, tentative d'enregistrement..."
-            )
-        else:
-            self.session_status_label.setText("● Démarrage du serveur LAN...")
+        self.session_status_label.setText("● Démarrage du serveur LAN...")
 
         karonline_kj_dir = Path(__file__).resolve().parent.parent
 
@@ -2483,47 +2503,25 @@ class MainWindow(QMainWindow):
             request = urllib.request.Request(
                 "https://api.karonlinelive.com/session/register",
                 data=payload,
-                headers={"Content-Type": "application/json"},
+                headers={
+                    **self.central_auth.authorization_header(),
+                    "Content-Type": "application/json",
+                },
                 method="POST",
             )
             with urllib.request.urlopen(request, timeout=10) as response:
                 if response.status != 200:
                     raise RuntimeError(f"HTTP {response.status}")
             self.session_status_label.setText(
-                f"● Session active : « {self._session_pending_name} » "
-                "— partagez ce nom à vos invités sur karonlinelive.com"
+                f"● Session active ({self.central_auth.email or 'compte'}) :"
+                f" « {self._session_pending_name} »"
+                " — partagez ce nom à vos invités sur karonlinelive.com"
             )
             self.set_status(f"● Session « {self._session_pending_name} » démarrée", True)
-        except urllib.error.HTTPError as exc:
-            if exc.code == 409:
-                QMessageBox.warning(
-                    self,
-                    "NOM DE SESSION DÉJÀ UTILISÉ",
-                    f"Le nom de session « {self._session_pending_name} » vient d'être pris.\n\n"
-                    "Choisissez un autre nom pour éviter que les invités rejoignent le mauvais hôte.",
-                    QMessageBox.Ok,
-                )
-                self.session_status_label.setText("● Nom de session déjà utilisé")
-            else:
-                self.session_status_label.setText(f"● Erreur d'enregistrement : HTTP {exc.code}")
         except (urllib.error.URLError, TimeoutError, OSError, RuntimeError) as exc:
             self.session_status_label.setText(f"● Erreur d'enregistrement : {exc}")
         finally:
             self.session_start_btn.setEnabled(True)
-
-    def _session_name_available(self, name):
-        url = f"https://api.karonlinelive.com/session/{name}"
-        try:
-            with urllib.request.urlopen(url, timeout=5) as response:
-                return response.status == 404
-        except urllib.error.HTTPError as exc:
-            if exc.code == 404:
-                return True
-            if exc.code == 200:
-                return False
-            return None
-        except (urllib.error.URLError, TimeoutError, OSError):
-            return None
 
     def _known_singer_names(self):
         names = set()
@@ -2668,6 +2666,96 @@ class MainWindow(QMainWindow):
         self.set_status("● FILE D’ATTENTE vidée")
 
 
+    # ------------------------------------------------------------------
+    # COMPTE KJ — catalogue consulté en ligne, favoris/réglages locaux
+    # ------------------------------------------------------------------
+    def ensure_central_login(self) -> bool:
+        """True si une session centrale valide existe ; sinon dialogue."""
+        if getattr(self, "_central_session_ok", False):
+            return True
+
+        client = self.central_auth
+        notice = ""
+        if client.is_authenticated:
+            QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+            try:
+                client.verify_stored_token()
+                valid = True
+            except Exception:
+                valid = False
+            finally:
+                QApplication.restoreOverrideCursor()
+            if valid:
+                self._central_session_ok = True
+                self.update_account_ui()
+                return True
+            client.clear()
+            notice = "Session expirée — reconnectez-vous.\n"
+        else:
+            notice = (
+                "Consultation du catalogue : connexion obligatoire.\n"
+                "Favoris et réglages restent utilisables sans connexion."
+            )
+
+        dialog = AuthDialog(self, mode=AuthDialog.MODE_LOGIN, notice=notice)
+        accepted = dialog.exec() == QDialog.Accepted and dialog.result_ok
+        if not accepted:
+            return False
+
+        client.save_session(
+            dialog.result_token, dialog.result_email, dialog.result_card
+        )
+        self._central_session_ok = True
+        self.update_account_ui()
+        return True
+
+    def update_account_ui(self):
+        info = self.central_auth.cached_account()
+        connected = bool(getattr(self, "_central_session_ok", False)
+                         and info.get("logged_in"))
+        if hasattr(self, "account_btn"):
+            if connected:
+                suffix = f" — {info.get('card')}" if info.get("card") else ""
+                self.account_btn.setText(
+                    f"👤 COMPTE : {info.get('email')}{suffix}"
+                )
+            else:
+                self.account_btn.setText("👤 COMPTE : non connecté")
+        self.setWindowTitle(
+            f"KaronlineBox — compte {info.get('email')}" if connected
+            else "KaronlineBox"
+        )
+
+    def open_account_dialog(self):
+        """Bouton COMPTE : connexion/enregistrement ou infos + déconnexion."""
+        if not self.ensure_central_login():
+            return
+        info = self.central_auth.cached_account()
+        box = QMessageBox(self)
+        box.setWindowTitle("Compte KaronlineLive")
+        box.setTextFormat(Qt.RichText)
+        box.setText(
+            f"<b>{info.get('email')}</b><br>"
+            f"Carte liée : {info.get('card') or 'aucune'}<br><br>"
+            "Phase tests amis/famille : aucune facturation.<br>"
+            "Catalogue consultable uniquement connecté ; favoris et "
+            "réglages restent mémorisés en local."
+        )
+        logout_btn = box.addButton(
+            "Se déconnecter", QMessageBox.DestructiveRole
+        )
+        box.addButton("Fermer", QMessageBox.RejectRole)
+        box.exec()
+        if box.clickedButton() is logout_btn:
+            QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+            try:
+                self.central_auth.logout()
+            finally:
+                QApplication.restoreOverrideCursor()
+            self._central_session_ok = False
+            self.update_account_ui()
+            self.set_status("● Déconnecté du compte KaronlineLive", False)
+
     def load_demo(self):
         # No fictitious singers, artists or titles at startup.
         # Karonline starts with an empty queue; real MP4s are added by
@@ -2683,6 +2771,15 @@ class MainWindow(QMainWindow):
         self.set_status("● Prêt — file d'attente vide")
 
     def scan_video_library(self):
+        # Consultation du catalogue : obligatoirement connecté au compte.
+        # Hors connexion, seuls les éléments locaux restent accessibles
+        # (favoris, réglages, file d'attente déjà chargée).
+        if not self.ensure_central_login():
+            self.video_list.clear()
+            self.set_status(
+                "● Catalogue indisponible sans connexion au compte", False
+            )
+            return
         media_dir = Path(__file__).resolve().parent.parent / "media"
         self.video_list.clear()
 

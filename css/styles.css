@@ -6,3 +6,20 @@
 .host-connect-dialog{background:#080e15;border:1px solid var(--line);border-radius:8px;color:var(--white);max-width:min(440px,calc(100vw - 32px));padding:28px}.host-connect-dialog::backdrop{background:rgba(0,0,0,.78)}.host-connect-dialog h2{font:600 30px var(--font-display);margin:6px 0 12px}.host-connect-dialog p{color:#d8dee5;font-size:14px;margin:0 0 18px}.host-connect-dialog label{display:block;font-size:13px;margin-bottom:6px}.host-connect-dialog input{background:#0b1821;border:1px solid var(--line);border-radius:6px;color:var(--white);font-size:16px;margin-bottom:16px;padding:14px 12px;width:100%}.host-connect-dialog .button{height:50px;width:100%}
 .host-status{color:var(--muted);font-size:13px;margin:6px 0 2px}.host-change-link{background:none;border:0;color:var(--cyan);cursor:pointer;font-size:13px;padding:0;text-decoration:underline}
 .host-connect-error{color:#ff6b6b;font-size:13px;margin:-8px 0 12px;min-height:16px}
+/* --- Compte / authentification (phase test amis/famille, pas de paiement) --- */
+[data-auth][hidden]{display:none!important}
+.account-zone{align-items:center;display:flex;gap:10px;justify-content:flex-end}
+.auth-overlay{position:fixed;right:18px;top:16px;z-index:25}
+.auth-overlay .account-link{padding:9px 16px;font-size:14px}
+.account-chip{align-items:center;background:rgba(8,14,21,.88);border:1px solid var(--line);border-radius:999px;color:var(--white);display:inline-flex;font-size:13px;gap:10px;padding:7px 8px 7px 14px}
+.account-chip b{color:#00c8ff;font-weight:600}
+.account-chip small{color:var(--muted)}
+.account-logout{background:none;border:0;color:#ff6b6b;cursor:pointer;font-size:12px;padding:4px 10px;text-decoration:underline}
+.auth-dialog{background:#080e15;border:1px solid var(--line);border-radius:8px;color:var(--white);max-width:min(430px,calc(100vw - 32px));padding:26px}
+.auth-dialog::backdrop{background:rgba(0,0,0,.78)}
+.auth-dialog h2{font:600 30px var(--font-display);margin:4px 0 14px}
+.auth-dialog label{display:block;font-size:13px;margin-bottom:6px}
+.auth-dialog label small{color:var(--muted);font-weight:400}
+.auth-dialog input{background:#0b1821;border:1px solid var(--line);border-radius:6px;color:var(--white);font-size:16px;margin-bottom:14px;padding:13px 12px;width:100%}
+.auth-note{color:var(--muted);font-size:12px;margin:-6px 0 12px}
+@media(max-width:760px){.auth-overlay{bottom:76px;left:18px;right:auto;top:auto}.auth-overlay .account-link{flex:1;text-align:center}}

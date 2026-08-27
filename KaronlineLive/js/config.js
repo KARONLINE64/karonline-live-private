@@ -67,5 +67,5 @@ function getCatalogueUrl() {
 }
 
 function getKaronlineBoxDownloadUrl() {
-  return 'downloads/KaronlineBox_V90_Setup_20260826_LANFIX.exe';
+  return `${CONFIG.LAN_SERVER_URL}${CONFIG.ENDPOINTS.DOWNLOAD}`;
 }
