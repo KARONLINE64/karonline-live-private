@@ -180,10 +180,13 @@ class RequestHandler(BaseHTTPRequestHandler):
     def _send_cors_headers(self):
         """Autoriser le site local, reseau prive, Tailscale, et domaine public karonlinelive.com."""
         origin = self.headers.get("Origin", "")
+        if not origin:
+            return
+
         parsed = urlparse(origin)
         hostname = parsed.hostname or ""
         allow_origin = False
-        
+
         try:
             origin_ip = ipaddress.ip_address(hostname)
             is_private_origin = (
@@ -195,16 +198,20 @@ class RequestHandler(BaseHTTPRequestHandler):
                 allow_origin = True
         except ValueError:
             # Allow localhost
-            if hostname == "localhost":
+            if hostname in {"localhost", "127.0.0.1", "::1"}:
                 allow_origin = True
-            # Allow HTTPS from karonlinelive.com domain
-            elif parsed.scheme == "https" and (hostname == "karonlinelive.com" or hostname.endswith(".karonlinelive.com")):
+            # Allow HTTPS from karonlinelive.com domains
+            elif parsed.scheme == "https" and (
+                hostname in {"karonlinelive.com", "www.karonlinelive.com"}
+                or hostname.endswith(".karonlinelive.com")
+            ):
                 allow_origin = True
         
         if allow_origin:
             self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 
     def do_OPTIONS(self):
         """Gérer les requêtes de préflight CORS"""

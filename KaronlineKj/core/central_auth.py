@@ -117,7 +117,7 @@ def api_register(email: str, password: str, card: str = "") -> dict:
     return {
         "token": data.get("token", ""),
         "email": data.get("email", clean),
-        "card_label": f"{brand} ••••{last4}" if last4 else "",
+        "card_label": data.get("card_label") or (f"{brand} ••••{last4}" if last4 else ""),
     }
 
 
@@ -201,6 +201,9 @@ class CentralAuthClient:
     def verify_stored_token(self) -> dict:
         """Confirme que le jeton sauvegardé est toujours valide."""
         data = api_me(self.token)
-        self.save_session(data.get("token", self.token),
-                          data.get("email", self.email), self.card_label)
+        self.save_session(
+            data.get("token", self.token),
+            data.get("email", self.email),
+            data.get("card_label", self.card_label),
+        )
         return data

@@ -43,6 +43,16 @@ function ensureHostConnected() {
   return false;
 }
 
+// Renvoie true si un compte KJ est connecte, sinon ouvre le dialog de connexion
+function ensureAuthenticated() {
+  const token = localStorage.getItem('kl_auth_token');
+  const email = localStorage.getItem('kl_auth_email');
+
+  if (token && email) return true;
+  document.querySelector('#login-dialog')?.showModal();
+  return false;
+}
+
 hostForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const submitBtn = hostForm.querySelector('button[type="submit"]');
@@ -78,6 +88,7 @@ hostChangeButtons.forEach((button) => button.addEventListener('click', () => {
 refreshHostStatus();
 
 catalogueTriggers.forEach((trigger) => trigger.addEventListener('click', () => {
+  if (!ensureAuthenticated()) return;
   if (!ensureHostConnected()) return;
   catalogueDialog?.showModal();
   search?.focus();
@@ -133,6 +144,12 @@ document.querySelectorAll('[data-close-dialog]').forEach((button) => {
 
 async function loadCatalogue() {
   if (!songsContainer) return;
+
+  if (!localStorage.getItem('kl_auth_token')) {
+    songsContainer.innerHTML = '<p class="empty-state">🔒 Connectez-vous à votre compte KJ pour accéder au catalogue.</p>';
+    return;
+  }
+
   if (!getHostServerUrl()) {
     songsContainer.innerHTML = '<p class="empty-state">🔌 Connectez-vous à un hôte KaronlineBox pour voir son catalogue.</p>';
     return;
@@ -267,9 +284,15 @@ function escapeHtml(value) {
   return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' })[character]);
 }
 
-// Page catalogue.html autonome (pas de dialog catalogue) : demander la connexion des l'arrivee
-if (!catalogueDialog && songsContainer && !getHostServerUrl()) {
-  hostDialog?.showModal();
+// Page catalogue.html autonome : auth d'abord, puis hôte si nécessaire
+if (!catalogueDialog && songsContainer) {
+  if (!localStorage.getItem('kl_auth_token')) {
+    document.querySelector('#login-dialog')?.showModal();
+  } else if (!getHostServerUrl()) {
+    hostDialog?.showModal();
+  } else {
+    loadCatalogue();
+  }
+} else {
+  loadCatalogue();
 }
-
-loadCatalogue();

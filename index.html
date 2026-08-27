@@ -68,6 +68,31 @@
       outline-offset: 2px;
     }
 
+    .register-trigger {
+      background: #000;
+      border: 1px solid #20323b;
+      border-radius: 5px;
+      color: #f4f7fb;
+      cursor: pointer;
+      font: 500 clamp(8px, 1.05vw, 17px) 'DM Sans', sans-serif;
+      inset: 3.1% auto auto 50.4%;
+      padding: 0;
+      position: absolute;
+      width: 9.4%;
+      height: 6%;
+      z-index: 1;
+    }
+
+    .register-trigger:hover {
+      background: #0b1821;
+      border-color: #387a90;
+    }
+
+    .register-trigger:focus-visible {
+      outline: 2px solid #145cff;
+      outline-offset: 2px;
+    }
+
     .download-trigger {
       background: transparent;
       border: 0;
@@ -275,19 +300,11 @@
     <div class="home-canvas">
       <img src="assets/ACCUEIL_00.png" alt="KaronlineLive">
       <button id="catalogue-trigger" class="catalogue-trigger" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog" aria-label="Ouvrir le catalogue de chansons"></button>
+      <button id="register-trigger" class="register-trigger" type="button" data-open-auth="register-dialog">S'enregistrer</button>
       <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
     </div>
     <div id="download-status" class="download-status" aria-live="polite"></div>
   </main>
-  <div class="account-zone auth-overlay">
-    <div data-auth="guest" class="account-actions">
-      <a class="button account-link" href="#" data-open-auth="login-dialog">Se connecter</a>
-      <a class="button button-primary account-link" href="#" data-open-auth="register-dialog">S'enregistrer</a>
-    </div>
-    <div data-auth="member" class="account-chip-row" hidden>
-      <span class="account-chip">Compte : <b data-account-email></b><small data-account-card></small><button type="button" class="account-logout" data-logout>Déconnexion</button></span>
-    </div>
-  </div>
   <div class="mobile-home">
     <div>
       <p class="brand-row">Karonline<span>Live</span></p>
@@ -297,13 +314,6 @@
     <h1>Karonline<span>Box</span></h1>
     <div class="mobile-actions">
       <button id="catalogue-trigger-mobile" class="button button-primary" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog">🎵 Voir le catalogue</button>
-      <div data-auth="guest" class="mobile-auth-actions">
-        <button class="button" type="button" data-open-auth="login-dialog">Se connecter</button>
-        <button class="button button-primary" type="button" data-open-auth="register-dialog">S'enregistrer</button>
-      </div>
-      <div data-auth="member" class="account-chip-row" hidden>
-        <span class="account-chip">Compte : <b data-account-email></b><small data-account-card></small><button type="button" class="account-logout" data-logout>Déconnexion</button></span>
-      </div>
     </div>
     <ul class="mobile-features">
       <li><strong>Karaoké pro</strong>Gestion complète des chansons, tonalités, favoris et file d'attente.</li>

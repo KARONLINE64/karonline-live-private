@@ -12,6 +12,7 @@ const AUTH_ERRORS = {
   'WRONG CREDENTIALS': 'Courriel ou mot de passe incorrect.',
   'CARD INVALID': 'Numéro de carte invalide.',
   'BAD REQUEST': 'Requête incomplète.',
+  'TOKEN INVALID': 'Session expirée. Reconnectez-vous.',
 };
 
 function authReadState() {
@@ -108,6 +109,27 @@ function authFeedback(id, message, isError) {
   output.classList.add('is-visible');
 }
 
+async function authValidateStoredSession() {
+  const state = authReadState();
+  if (!state.token || !state.email) return true;
+
+  try {
+    const data = await authFetch('/auth/me', undefined, state.token);
+    const freshCard = data.card_label || state.card || '';
+    authSaveSession(state.token, data.email || state.email, freshCard);
+    authRenderUI();
+    return true;
+  } catch (error) {
+    authClearSession();
+    authRenderUI();
+    if (typeof authFeedback === 'function') {
+      authFeedback('login-result', AUTH_ERRORS[error.code] || error.message, true);
+    }
+    document.querySelector('#login-dialog')?.showModal();
+    return false;
+  }
+}
+
 async function handleSubmitRegister(event) {
   event.preventDefault();
   const form = event.currentTarget;
@@ -119,17 +141,18 @@ async function handleSubmitRegister(event) {
   authBusy(form, 'Envoi...');
   try {
     const digits = String(card || '').replace(/\D/g, '');
-    const data = await authFetch('/auth/register', {
-      email,
-      password,
-      card_brand: digits.startsWith('4')
+    const payload = { email, password };
+    if (digits.length >= 12) {
+      payload.card_brand = digits.startsWith('4')
         ? 'Visa'
-        : (/^5[1-5]/.test(digits) ? 'Mastercard' : ''),
-      card_last4: digits.slice(-4),
-    });
+        : (/^5[1-5]/.test(digits) ? 'Mastercard' : '');
+      payload.card_last4 = digits.slice(-4);
+    }
+    const data = await authFetch('/auth/register', payload);
     authSaveSession(data.token, data.email, data.card_label || '');
     document.querySelector('#register-dialog')?.close();
     authRenderUI();
+    if (typeof loadCatalogue === 'function') loadCatalogue();
   } catch (error) {
     authFeedback('register-result', error.message, true);
   } finally {
@@ -150,6 +173,7 @@ async function handleSubmitLogin(event) {
     authSaveSession(data.token, data.email, data.card_label || '');
     document.querySelector('#login-dialog')?.close();
     authRenderUI();
+    if (typeof loadCatalogue === 'function') loadCatalogue();
   } catch (error) {
     authFeedback('login-result', error.message, true);
   } finally {
@@ -196,6 +220,7 @@ function initAuthPage() {
   });
 
   authRenderUI();
+  authValidateStoredSession();
 }
 
 if (document.readyState === 'loading') {
