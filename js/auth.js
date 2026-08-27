@@ -224,7 +224,7 @@ function initAuthPage() {
       if (!input) return;
       const visible = input.type === 'text';
       input.type = visible ? 'password' : 'text';
-      button.textContent = visible ? 'Afficher' : 'Masquer';
+      button.innerHTML = visible ? '&#128065;' : '&#128065;&#x338;';
       button.setAttribute('aria-label', visible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
       button.setAttribute('aria-pressed', String(!visible));
     });
