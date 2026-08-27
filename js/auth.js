@@ -218,6 +218,17 @@ function initAuthPage() {
   document.querySelectorAll('[data-logout]').forEach((button) => {
     button.addEventListener('click', handleLogout);
   });
+  document.querySelectorAll('[data-password-toggle]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const input = document.querySelector(`#${button.dataset.passwordToggle}`);
+      if (!input) return;
+      const visible = input.type === 'text';
+      input.type = visible ? 'password' : 'text';
+      button.textContent = visible ? 'Afficher' : 'Masquer';
+      button.setAttribute('aria-label', visible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
+      button.setAttribute('aria-pressed', String(!visible));
+    });
+  });
 
   authRenderUI();
   authValidateStoredSession();

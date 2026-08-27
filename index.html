@@ -383,7 +383,10 @@
       <label for="reg-email">Adresse mail (identifiant)</label>
       <input id="reg-email" name="email" type="email" required autocomplete="email" placeholder="vous@exemple.com">
       <label for="reg-password">Mot de passe</label>
-      <input id="reg-password" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="8 caractères minimum">
+      <div class="password-field">
+        <input id="reg-password" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="8 caractères minimum">
+        <button class="password-toggle" type="button" data-password-toggle="reg-password" aria-label="Afficher le mot de passe" aria-pressed="false">Afficher</button>
+      </div>
       <label for="reg-card">Carte bancaire <small>(optionnel)</small></label>
       <input id="reg-card" name="card" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="Optionnel pendant la phase de test">
       <p class="auth-note">Vos futures sessions KaronlineBox seront rattachées à ce compte pour la facturation. Phase tests amis/famille : aucun prélèvement, seuls les 4 derniers chiffres sont mémorisés.</p>
