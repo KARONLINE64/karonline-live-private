@@ -1,6 +1,12 @@
 // KaronlineLive — comptes KJ : enregistrement / connexion via l'API centrale.
 // Phase de test amis/famille : aucun paiement réel ; carte optionnelle masquée.
-const AUTH_API = 'https://api.karonlinelive.com';
+const AUTH_API = (() => {
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
+    return 'http://localhost:8765';
+  }
+  return 'https://api.karonlinelive.com';
+})();
 const AUTH_TOKEN_KEY = 'kl_auth_token';
 const AUTH_EMAIL_KEY = 'kl_auth_email';
 const AUTH_CARD_KEY = 'kl_auth_card';
@@ -10,6 +16,10 @@ const AUTH_ERRORS = {
   'INVALID EMAIL': 'Adresse mail invalide.',
   'WEAK PASSWORD': 'Mot de passe trop court (8 caractères minimum).',
   'WRONG CREDENTIALS': 'Courriel ou mot de passe incorrect.',
+  'EMAIL NOT VERIFIED': 'Veuillez valider votre adresse e-mail avant de vous connecter.',
+  'INVALID CODE': 'Code de vérification invalide.',
+  'CODE EXPIRED': 'Le code de vérification a expiré. Demandez un nouveau code.',
+  'NO CODE SENT': 'Aucun code de vérification n’a été envoyé pour cet e-mail.',
   'CARD INVALID': 'Numéro de carte invalide.',
   'BAD REQUEST': 'Requête incomplète.',
   'TOKEN INVALID': 'Session expirée. Reconnectez-vous.',
@@ -161,6 +171,14 @@ async function handleSubmitRegister(event) {
       payload.card_last4 = digits.slice(-4);
     }
     const data = await authFetch('/auth/register', payload);
+    const verifyBox = document.querySelector('#register-verify-box');
+    const verifyCodeInput = document.querySelector('#reg-verification-code');
+    if (data.verification_required) {
+      if (verifyBox) verifyBox.hidden = false;
+      if (verifyCodeInput) verifyCodeInput.focus();
+      authFeedback('register-result', 'Un code de vérification a été envoyé à votre adresse e-mail.', false);
+      return;
+    }
     authSaveSession(data.token, data.email, data.card_label || '');
     document.querySelector('#register-dialog')?.close();
     authRenderUI();
@@ -170,6 +188,41 @@ async function handleSubmitRegister(event) {
   } finally {
     authIdle(form, 'Créer mon compte');
     form.querySelector('#reg-password').value = '';
+  }
+}
+
+async function handleSubmitVerificationCode() {
+  const email = document.querySelector('#reg-email')?.value.trim();
+  const code = document.querySelector('#reg-verification-code')?.value.trim();
+  if (!email || !code) {
+    authFeedback('register-result', 'Saisissez votre e-mail et le code reçu.', true);
+    return;
+  }
+
+  try {
+    const data = await authFetch('/auth/verify', { email, code });
+    authSaveSession(data.token, data.email, data.card_label || '');
+    document.querySelector('#register-verify-box').hidden = true;
+    document.querySelector('#register-dialog')?.close();
+    authRenderUI();
+    if (typeof loadCatalogue === 'function') loadCatalogue();
+    authFeedback('register-result', 'Votre adresse e-mail a été validée.', false);
+  } catch (error) {
+    authFeedback('register-result', error.message, true);
+  }
+}
+
+async function handleResendVerificationCode() {
+  const email = document.querySelector('#reg-email')?.value.trim();
+  if (!email) {
+    authFeedback('register-result', 'Saisissez votre e-mail pour recevoir un nouveau code.', true);
+    return;
+  }
+  try {
+    await authFetch('/auth/resend', { email });
+    authFeedback('register-result', 'Un nouveau code de vérification a été envoyé.', false);
+  } catch (error) {
+    authFeedback('register-result', error.message, true);
   }
 }
 
@@ -225,6 +278,10 @@ function initAuthPage() {
 
   document.querySelector('#register-form')
     ?.addEventListener('submit', handleSubmitRegister);
+  document.querySelector('#register-verify-button')
+    ?.addEventListener('click', handleSubmitVerificationCode);
+  document.querySelector('#register-resend-button')
+    ?.addEventListener('click', handleResendVerificationCode);
   document.querySelector('#login-form')
     ?.addEventListener('submit', handleSubmitLogin);
   document.querySelectorAll('[data-logout]').forEach((button) => {

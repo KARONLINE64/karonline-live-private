@@ -390,6 +390,14 @@
       <label for="reg-card">Carte bancaire <small>(optionnel)</small></label>
       <input id="reg-card" name="card" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="Optionnel pendant la phase de test">
       <p class="auth-note">Vos futures sessions KaronlineBox seront rattachées à ce compte pour la facturation. Phase tests amis/famille : aucun prélèvement, seuls les 4 derniers chiffres sont mémorisés.</p>
+      <div id="register-verify-box" hidden>
+        <label for="reg-verification-code">Code de vérification</label>
+        <input id="reg-verification-code" name="verification_code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456">
+        <div class="request-actions">
+          <button id="register-verify-button" class="button button-primary" type="button">Vérifier mon email</button>
+          <button id="register-resend-button" class="button button-primary" type="button">Renvoyer le code</button>
+        </div>
+      </div>
       <output id="register-result" class="request-result" aria-live="polite"></output>
       <div class="request-actions">
         <button class="button button-primary submit-button" type="submit">Créer mon compte</button>

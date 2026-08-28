@@ -28,6 +28,7 @@ const hostChangeButtons = document.querySelectorAll('[data-change-host]');
 let songs = [];
 let isSubmitting = false;
 let isDownloading = false;
+let isMobileParticipant = false; // Mode mobile: participant dans une session KJ, pas compte KJ
 
 function refreshHostStatus() {
   const url = getHostServerUrl();
@@ -87,12 +88,27 @@ hostChangeButtons.forEach((button) => button.addEventListener('click', () => {
 
 refreshHostStatus();
 
-catalogueTriggers.forEach((trigger) => trigger.addEventListener('click', () => {
-  if (!ensureAuthenticated()) return;
-  if (!ensureHostConnected()) return;
-  catalogueDialog?.showModal();
-  search?.focus();
-}));
+// Desktop: catalogue requiert authentification KJ et connexion hôte
+const catalogueTriggerDesktop = document.querySelector('#catalogue-trigger');
+if (catalogueTriggerDesktop) {
+  catalogueTriggerDesktop.addEventListener('click', () => {
+    if (!ensureAuthenticated()) return;
+    if (!ensureHostConnected()) return;
+    catalogueDialog?.showModal();
+    search?.focus();
+  });
+}
+
+// Mobile: "Participer" requiert SEULEMENT le nom de session KaronlineBox (pas d'email/password)
+const catalogueTriggerMobile = document.querySelector('#catalogue-trigger-mobile');
+if (catalogueTriggerMobile) {
+  catalogueTriggerMobile.addEventListener('click', () => {
+    isMobileParticipant = true;
+    if (!ensureHostConnected()) return;  // Seule authentification: nom de session KJ
+    catalogueDialog?.showModal();
+    search?.focus();
+  });
+}
 
 function setDownloadStatus(text, state) {
   downloadStatuses.forEach((el) => {
@@ -286,7 +302,7 @@ function escapeHtml(value) {
 
 // Page catalogue.html autonome : auth d'abord, puis hôte si nécessaire
 if (!catalogueDialog && songsContainer) {
-  if (!localStorage.getItem('kl_auth_token')) {
+  if (!isMobileParticipant && !localStorage.getItem('kl_auth_token')) {
     document.querySelector('#login-dialog')?.showModal();
   } else if (!getHostServerUrl()) {
     hostDialog?.showModal();

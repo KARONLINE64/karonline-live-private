@@ -1,6 +1,13 @@
 // Configuration KaronlineLive - chaque visiteur se connecte a l'hote (KaronlineBox)
 // de son choix : plusieurs hotes peuvent tourner en meme temps, chacun chez soi.
 const HOST_URL_KEY = 'kl_host_url';
+const CENTRAL_API_BASE = (() => {
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') {
+    return 'http://localhost:8765';
+  }
+  return 'https://api.karonlinelive.com';
+})();
 
 function isLanHostname(hostname) {
   return hostname === 'localhost' ||
@@ -43,7 +50,7 @@ async function connectToHost(input) {
 
   // Sinon, c'est un nom de session a resoudre via l'annuaire central.
   try {
-    const response = await fetch(`https://api.karonlinelive.com/session/${encodeURIComponent(clean.toLowerCase())}`);
+    const response = await fetch(`${CENTRAL_API_BASE}/session/${encodeURIComponent(clean.toLowerCase())}`);
     if (!response.ok) {
       return { ok: false, error: 'SESSION NOT FOUND' };
     }
@@ -108,5 +115,5 @@ function getCatalogueUrl() {
 function getKaronlineBoxDownloadUrl() {
   // Le programme d'installation est le meme pour tout le monde : toujours
   // servi par le serveur central, jamais par l'hote de session en cours.
-  return `https://api.karonlinelive.com${CONFIG.ENDPOINTS.DOWNLOAD}`;
+  return `${CENTRAL_API_BASE}${CONFIG.ENDPOINTS.DOWNLOAD}`;
 }
