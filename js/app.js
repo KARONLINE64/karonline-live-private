@@ -88,12 +88,11 @@ hostChangeButtons.forEach((button) => button.addEventListener('click', () => {
 
 refreshHostStatus();
 
-// Desktop: catalogue requiert authentification KJ et connexion hôte
+// Desktop: catalogue requiert SEULEMENT l'authentification KJ (pas de nom de session hôte)
 const catalogueTriggerDesktop = document.querySelector('#catalogue-trigger');
 if (catalogueTriggerDesktop) {
   catalogueTriggerDesktop.addEventListener('click', () => {
     if (!ensureAuthenticated()) return;
-    if (!ensureHostConnected()) return;
     catalogueDialog?.showModal();
     search?.focus();
   });
