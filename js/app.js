@@ -95,6 +95,7 @@ if (catalogueTriggerDesktop) {
     if (!ensureAuthenticated()) return;
     catalogueDialog?.showModal();
     search?.focus();
+    loadCatalogue();
   });
 }
 
@@ -163,6 +164,13 @@ async function loadCatalogue() {
   if (!localStorage.getItem('kl_auth_token')) {
     songsContainer.innerHTML = '<p class="empty-state">🔒 Connectez-vous à votre compte KJ pour accéder au catalogue.</p>';
     return;
+  }
+
+  // Desktop KJ : le catalogue est celui de sa propre KaronlineBox locale,
+  // jamais une session d'un autre hôte a rejoindre.
+  if (!isMobileParticipant && !getHostServerUrl()) {
+    setHostServerUrl('http://localhost:8765');
+    refreshHostStatus();
   }
 
   if (!getHostServerUrl()) {
