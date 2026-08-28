@@ -29,6 +29,7 @@ let songs = [];
 let isSubmitting = false;
 let isDownloading = false;
 let isMobileParticipant = false; // Mode mobile: participant dans une session KJ, pas compte KJ
+let isDesktopCatalogueRequested = false; // Mode desktop: vrai seulement après clic explicite sur Catalogue
 
 function refreshHostStatus() {
   const url = getHostServerUrl();
@@ -93,6 +94,7 @@ const catalogueTriggerDesktop = document.querySelector('#catalogue-trigger');
 if (catalogueTriggerDesktop) {
   catalogueTriggerDesktop.addEventListener('click', () => {
     if (!ensureAuthenticated()) return;
+    isDesktopCatalogueRequested = true;
     catalogueDialog?.showModal();
     search?.focus();
     loadCatalogue();
@@ -161,14 +163,16 @@ document.querySelectorAll('[data-close-dialog]').forEach((button) => {
 async function loadCatalogue() {
   if (!songsContainer) return;
 
-  if (!localStorage.getItem('kl_auth_token')) {
+  if (!isMobileParticipant && !localStorage.getItem('kl_auth_token')) {
     songsContainer.innerHTML = '<p class="empty-state">🔒 Connectez-vous à votre compte KJ pour accéder au catalogue.</p>';
     return;
   }
 
   // Desktop KJ : le catalogue est celui de sa propre KaronlineBox locale,
-  // jamais une session d'un autre hôte a rejoindre.
-  if (!isMobileParticipant && !getHostServerUrl()) {
+  // jamais une session d'un autre hôte a rejoindre. Ne s'applique qu'après
+  // un clic explicite sur le bouton Catalogue desktop (jamais au chargement
+  // initial de la page, pour ne pas polluer le flux mobile "Participer").
+  if (isDesktopCatalogueRequested && !isMobileParticipant && !getHostServerUrl()) {
     setHostServerUrl('http://localhost:8765');
     refreshHostStatus();
   }
