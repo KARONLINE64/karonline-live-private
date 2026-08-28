@@ -69,12 +69,9 @@
     }
 
     .register-trigger {
-      background: #000;
-      border: 1px solid #20323b;
-      border-radius: 5px;
-      color: #f4f7fb;
+      background: transparent;
+      border: 0;
       cursor: pointer;
-      font: 500 clamp(8px, 1.05vw, 17px) 'DM Sans', sans-serif;
       inset: 3.1% auto auto 50.4%;
       padding: 0;
       position: absolute;
@@ -83,12 +80,28 @@
       z-index: 1;
     }
 
-    .register-trigger:hover {
-      background: #0b1821;
-      border-color: #387a90;
+    .register-trigger:focus-visible {
+      border: 2px solid #fff;
+      border-radius: 5px;
+      outline: 2px solid #145cff;
+      outline-offset: 2px;
     }
 
-    .register-trigger:focus-visible {
+    .login-trigger {
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      inset: 3.1% auto auto 61%;
+      padding: 0;
+      position: absolute;
+      width: 10%;
+      height: 6%;
+      z-index: 1;
+    }
+
+    .login-trigger:focus-visible {
+      border: 2px solid #fff;
+      border-radius: 5px;
       outline: 2px solid #145cff;
       outline-offset: 2px;
     }
@@ -300,7 +313,8 @@
     <div class="home-canvas">
       <img src="assets/ACCUEIL_00.png" alt="KaronlineLive">
       <button id="catalogue-trigger" class="catalogue-trigger" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog" aria-label="Ouvrir le catalogue de chansons"></button>
-      <button id="register-trigger" class="register-trigger" type="button" data-open-auth="register-dialog">S'enregistrer</button>
+      <button id="register-trigger" class="register-trigger" type="button" data-open-auth="register-dialog" aria-label="S'enregistrer"></button>
+      <button id="login-trigger" class="login-trigger" type="button" data-open-auth="login-dialog" aria-label="Se connecter"></button>
       <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
     </div>
     <div id="download-status" class="download-status" aria-live="polite"></div>
