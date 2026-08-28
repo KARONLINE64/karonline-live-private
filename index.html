@@ -106,6 +106,31 @@
       outline-offset: 2px;
     }
 
+    .logout-trigger {
+      background: #000;
+      border: 1px solid #20323b;
+      border-radius: 5px;
+      color: #f4f7fb;
+      cursor: pointer;
+      font: 500 clamp(8px, 1.05vw, 15px) 'DM Sans', sans-serif;
+      inset: 3.1% auto auto 61%;
+      padding: 0;
+      position: absolute;
+      width: 10%;
+      height: 6%;
+      z-index: 1;
+    }
+
+    .logout-trigger:hover {
+      background: #0b1821;
+      border-color: #387a90;
+    }
+
+    .logout-trigger:focus-visible {
+      outline: 2px solid #145cff;
+      outline-offset: 2px;
+    }
+
     .download-trigger {
       background: transparent;
       border: 0;
@@ -314,7 +339,8 @@
       <img src="assets/ACCUEIL_00.png" alt="KaronlineLive">
       <button id="catalogue-trigger" class="catalogue-trigger" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog" aria-label="Ouvrir le catalogue de chansons"></button>
       <button id="register-trigger" class="register-trigger" type="button" data-open-auth="register-dialog" aria-label="S'enregistrer"></button>
-      <button id="login-trigger" class="login-trigger" type="button" data-open-auth="login-dialog" aria-label="Se connecter"></button>
+      <button id="login-trigger" class="login-trigger" type="button" data-open-auth="login-dialog" data-auth="guest" aria-label="Se connecter"></button>
+      <button id="logout-trigger" class="logout-trigger" type="button" data-auth="member" data-logout>Se déconnecter</button>
       <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
     </div>
     <div id="download-status" class="download-status" aria-live="polite"></div>
