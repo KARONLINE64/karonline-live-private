@@ -93,44 +93,6 @@
       outline-offset: 2px;
     }
 
-    .account-bar {
-      position: absolute;
-      top: 3.1%;
-      right: 1.6%;
-      z-index: 2;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font: 500 clamp(8px, 1.05vw, 15px) 'DM Sans', sans-serif;
-    }
-
-    .account-bar-btn {
-      background: #000;
-      border: 1px solid #20323b;
-      border-radius: 5px;
-      color: #f4f7fb;
-      cursor: pointer;
-      padding: 6px 12px;
-      font: inherit;
-    }
-
-    .account-bar-btn:hover {
-      background: #0b1821;
-      border-color: #387a90;
-    }
-
-    .account-bar-member {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: #f4f7fb;
-    }
-
-    [data-auth="guest"][hidden],
-    [data-auth="member"][hidden] {
-      display: none;
-    }
-
     .download-trigger {
       background: transparent;
       border: 0;
@@ -340,13 +302,6 @@
       <button id="catalogue-trigger" class="catalogue-trigger" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog" aria-label="Ouvrir le catalogue de chansons"></button>
       <button id="register-trigger" class="register-trigger" type="button" data-open-auth="register-dialog">S'enregistrer</button>
       <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
-      <div id="account-bar" class="account-bar">
-        <button id="login-trigger" class="account-bar-btn" type="button" data-open-auth="login-dialog" data-auth="guest">Se connecter</button>
-        <div class="account-bar-member" data-auth="member">
-          <span data-account-email></span>
-          <button class="account-bar-btn" type="button" data-logout>Déconnexion</button>
-        </div>
-      </div>
     </div>
     <div id="download-status" class="download-status" aria-live="polite"></div>
   </main>
