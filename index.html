@@ -131,6 +131,18 @@
       outline-offset: 2px;
     }
 
+    .account-email-flashy {
+      color: #00ffe1;
+      font: 700 clamp(8px, 1.05vw, 15px) 'DM Sans', sans-serif;
+      text-align: center;
+      text-shadow: 0 0 6px #00ffe1, 0 0 12px #00c2ff;
+      inset: 9.3% auto auto 61%;
+      padding: 0;
+      position: absolute;
+      width: 10%;
+      z-index: 1;
+    }
+
     .download-trigger {
       background: transparent;
       border: 0;
@@ -341,6 +353,7 @@
       <button id="register-trigger" class="register-trigger" type="button" data-open-auth="register-dialog" aria-label="S'enregistrer"></button>
       <button id="login-trigger" class="login-trigger" type="button" data-open-auth="login-dialog" data-auth="guest" aria-label="Se connecter"></button>
       <button id="logout-trigger" class="logout-trigger" type="button" data-auth="member" data-logout>Se déconnecter</button>
+      <span class="account-email-flashy" data-auth="member" data-account-email></span>
       <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
     </div>
     <div id="download-status" class="download-status" aria-live="polite"></div>
