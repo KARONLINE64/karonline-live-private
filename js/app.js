@@ -87,7 +87,12 @@ hostForm?.addEventListener('submit', async (event) => {
   hostInput.value = '';
   refreshHostStatus();
   hostDialog?.close();
-  catalogueDialog?.showModal();
+  try {
+    if (catalogueDialog?.open) catalogueDialog.close();
+    catalogueDialog?.showModal();
+  } catch (dialogError) {
+    console.error('Erreur ouverture du catalogue:', dialogError);
+  }
   search?.focus();
   loadCatalogue();
 });
