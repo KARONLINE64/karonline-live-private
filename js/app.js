@@ -32,15 +32,22 @@ let isMobileParticipant = false; // Mode mobile: participant dans une session KJ
 let isDesktopCatalogueRequested = false; // Mode desktop: vrai seulement après clic explicite sur Catalogue
 
 function refreshHostStatus() {
+  const relayName = getRelaySessionName();
   const url = getHostServerUrl();
   hostStatuses.forEach((el) => {
-    el.textContent = url ? `Connecté à : ${url.replace(/^https?:\/\//, '')}` : 'Non connecté à un hôte';
+    if (relayName) {
+      el.textContent = `Connecté à la session : ${relayName}`;
+    } else if (url) {
+      el.textContent = `Connecté à : ${url.replace(/^https?:\/\//, '')}`;
+    } else {
+      el.textContent = 'Non connecté à un hôte';
+    }
   });
 }
 
 // Renvoie true si un hote est deja configure, sinon ouvre le dialog de connexion et renvoie false
 function ensureHostConnected() {
-  if (getHostServerUrl()) return true;
+  if (isHostConnected()) return true;
   hostDialog?.showModal();
   return false;
 }
@@ -80,6 +87,8 @@ hostForm?.addEventListener('submit', async (event) => {
   hostInput.value = '';
   refreshHostStatus();
   hostDialog?.close();
+  catalogueDialog?.showModal();
+  search?.focus();
   loadCatalogue();
 });
 
@@ -101,14 +110,13 @@ if (catalogueTriggerDesktop) {
   });
 }
 
-// Mobile: "Participer" requiert SEULEMENT le nom de session KaronlineBox (pas d'email/password)
+// Mobile: "Participer" demande TOUJOURS le nom de session KJ/hôte, à chaque
+// clic, jamais d'email/password. Aucun raccourci meme si deja connecte avant.
 const catalogueTriggerMobile = document.querySelector('#catalogue-trigger-mobile');
 if (catalogueTriggerMobile) {
   catalogueTriggerMobile.addEventListener('click', () => {
     isMobileParticipant = true;
-    if (!ensureHostConnected()) return;  // Seule authentification: nom de session KJ
-    catalogueDialog?.showModal();
-    search?.focus();
+    hostDialog?.showModal();
   });
 }
 
@@ -172,12 +180,12 @@ async function loadCatalogue() {
   // jamais une session d'un autre hôte a rejoindre. Ne s'applique qu'après
   // un clic explicite sur le bouton Catalogue desktop (jamais au chargement
   // initial de la page, pour ne pas polluer le flux mobile "Participer").
-  if (isDesktopCatalogueRequested && !isMobileParticipant && !getHostServerUrl()) {
+  if (isDesktopCatalogueRequested && !isMobileParticipant && !isHostConnected()) {
     setHostServerUrl('http://localhost:8765');
     refreshHostStatus();
   }
 
-  if (!getHostServerUrl()) {
+  if (!isHostConnected()) {
     songsContainer.innerHTML = '<p class="empty-state">🔌 Connectez-vous à un hôte KaronlineBox pour voir son catalogue.</p>';
     return;
   }
@@ -311,15 +319,16 @@ function escapeHtml(value) {
   return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' })[character]);
 }
 
-// Page catalogue.html autonome : auth d'abord, puis hôte si nécessaire
+// Page catalogue.html autonome : auth d'abord, puis hôte si nécessaire.
+// Sur index.html (catalogueDialog présent), rien à charger au chargement de
+// la page : le catalogue ne se charge que sur clic explicite (desktop
+// "Catalogue" ou mobile "Participer"), jamais automatiquement.
 if (!catalogueDialog && songsContainer) {
   if (!isMobileParticipant && !localStorage.getItem('kl_auth_token')) {
     document.querySelector('#login-dialog')?.showModal();
-  } else if (!getHostServerUrl()) {
+  } else if (!isHostConnected()) {
     hostDialog?.showModal();
   } else {
     loadCatalogue();
   }
-} else {
-  loadCatalogue();
 }
