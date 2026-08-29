@@ -60,3 +60,11 @@ class FavoritesManager(QObject):
         self.solo.clear()
         self.group.clear()
         self._save()
+
+    def clear_solo(self):
+        self.solo.clear()
+        self._save()
+
+    def clear_group(self):
+        self.group.clear()
+        self._save()

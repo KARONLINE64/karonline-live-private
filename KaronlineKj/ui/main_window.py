@@ -1450,18 +1450,15 @@ class MainWindow(QMainWindow):
         self.favorites_tabs.addTab(self.group_favorites_list, "GROUPE")
         favorites_box_layout.addWidget(self.favorites_tabs, 1)
 
-        favorites_test_row = QHBoxLayout()
-        self.favorites_test_button = QPushButton("🧪 CHARGER FAVORIS TEST")
-        self.favorites_test_button.setToolTip(
-            "Mode test : remplir MES FAVORIS et NOTRE SOIRÉE"
-        )
-        self.favorites_test_button.clicked.connect(self.inject_test_favorites)
-        self.favorites_test_clear = QPushButton("EFFACER TEST")
-        self.favorites_test_clear.clicked.connect(self.clear_test_favorites)
-        favorites_test_row.addWidget(self.favorites_test_button)
-        favorites_test_row.addWidget(self.favorites_test_clear)
-        favorites_test_row.addStretch()
-        favorites_box_layout.addLayout(favorites_test_row)
+        favorites_clear_row = QHBoxLayout()
+        self.clear_solo_favorites_button = QPushButton("Vider mes favoris")
+        self.clear_solo_favorites_button.clicked.connect(self.clear_my_favorites)
+        self.clear_group_favorites_button = QPushButton("Vider les favoris du groupe")
+        self.clear_group_favorites_button.clicked.connect(self.clear_group_favorites)
+        favorites_clear_row.addWidget(self.clear_solo_favorites_button)
+        favorites_clear_row.addWidget(self.clear_group_favorites_button)
+        favorites_clear_row.addStretch()
+        favorites_box_layout.addLayout(favorites_clear_row)
 
         favorites_layout.addWidget(favorites_box)
 
@@ -1845,21 +1842,31 @@ class MainWindow(QMainWindow):
         )
 
 
-    def inject_test_favorites(self):
-        self.favorites.add_solo("Don't Stop Me Now", "Queen")
-        self.favorites.add_solo("Dancing Queen", "ABBA")
-        self.favorites.add_group("Marc", "Alors on danse", "Stromae")
-        self.favorites.add_group("Sophie", "Je veux", "Zaz")
-        self.favorites.add_group("Marc", "Allumer le feu", "Johnny Hallyday")
+    def clear_my_favorites(self):
+        reply = QMessageBox.question(
+            self, "VIDER MES FAVORIS",
+            "Supprimer tous vos favoris personnels (onglet MOI) ?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        self.favorites.clear_solo()
         self.refresh_favorites()
         self.show_main_view("favorites")
-        self.set_status("● Favoris de test chargés", True)
+        self.set_status("● Mes favoris effacés", True)
 
-    def clear_test_favorites(self):
-        self.favorites.clear()
+    def clear_group_favorites(self):
+        reply = QMessageBox.question(
+            self, "VIDER LES FAVORIS DU GROUPE",
+            "Supprimer tous les favoris du groupe (onglet GROUPE) ?",
+            QMessageBox.Yes | QMessageBox.No,
+        )
+        if reply != QMessageBox.Yes:
+            return
+        self.favorites.clear_group()
         self.refresh_favorites()
         self.show_main_view("favorites")
-        self.set_status("● Favoris locaux effacés", True)
+        self.set_status("● Favoris du groupe effacés", True)
 
     def inject_20_test_requests(self):
         """Inject 20 ready-made requests, one unique singer per request."""
@@ -2315,8 +2322,7 @@ class MainWindow(QMainWindow):
             if not self._start_local_catalogue_server():
                 self.session_start_btn.setEnabled(True)
                 self.session_status_label.setText(
-                    "● Impossible de démarrer le serveur catalogue local"
-                    " (dossier media introuvable)."
+                    "● Impossible de démarrer le serveur catalogue local."
                 )
                 return
 
@@ -2373,8 +2379,10 @@ class MainWindow(QMainWindow):
         fonctionne pas dans un exe PyInstaller gelé (sys.executable est
         l'exe lui-même, pas un interpréteur python)."""
         media_dir = Path(__file__).resolve().parent.parent / "media"
-        if not media_dir.is_dir():
-            print(f"LOCAL CATALOGUE SERVER ERROR = dossier introuvable {media_dir}", flush=True)
+        try:
+            media_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            print(f"LOCAL CATALOGUE SERVER ERROR = {exc}", flush=True)
             return False
         try:
             import lan_server
@@ -2453,6 +2461,22 @@ class MainWindow(QMainWindow):
                     ) as local_response:
                         status = local_response.status
                         body = json.loads(local_response.read().decode("utf-8"))
+                    # Phase de test amis/famille : si ce poste n'a pas encore
+                    # sa propre bibliotheque locale, on affiche celle partagee
+                    # sur le PC fixe (annuaire central) au lieu d'un catalogue
+                    # vide.
+                    if status == 200 and not body:
+                        try:
+                            central_request = urllib.request.Request(
+                                "https://api.karonlinelive.com/catalogue",
+                                headers={"User-Agent": user_agent},
+                                method="GET",
+                            )
+                            with urllib.request.urlopen(central_request, timeout=8) as central_response:
+                                status = central_response.status
+                                body = json.loads(central_response.read().decode("utf-8"))
+                        except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+                            pass
                 elif job_type == "request-demand":
                     demand_payload = dict(payload)
                     demand_payload["client_ip"] = "127.0.0.1"
@@ -2772,17 +2796,15 @@ class MainWindow(QMainWindow):
         media_dir = Path(__file__).resolve().parent.parent / "media"
         self.video_list.clear()
 
-        if not media_dir.exists():
-            self.set_status("● dossier media introuvable", False)
-            return
+        local_files = []
+        if media_dir.exists():
+            local_files = sorted(
+                [p for p in media_dir.iterdir()
+                 if p.is_file() and p.suffix.lower() == ".mp4"],
+                key=lambda p: p.name.lower()
+            )
 
-        files = sorted(
-            [p for p in media_dir.iterdir()
-             if p.is_file() and p.suffix.lower() == ".mp4"],
-            key=lambda p: p.name.lower()
-        )
-
-        for video_file in files:
+        for video_file in local_files:
             size_mb = video_file.stat().st_size / (1024 * 1024)
             item = QListWidgetItem(
                 f"{video_file.name}    [{size_mb:.1f} Mo]"
@@ -2790,16 +2812,91 @@ class MainWindow(QMainWindow):
             item.setData(Qt.UserRole, str(video_file))
             self.video_list.addItem(item)
 
+        # Phase de test amis/famille : ce poste peut ne pas avoir sa propre
+        # bibliotheque MP4 -> on propose aussi les titres de la bibliotheque
+        # partagee du PC fixe (telecharges a la demande au moment de jouer).
+        local_names = {p.name.casefold() for p in local_files}
+        remote_songs = self._fetch_central_catalogue()
+        remote_added = 0
+        for song in remote_songs:
+            filename = str(song.get("filename", "")).strip()
+            if not filename or filename.casefold() in local_names:
+                continue
+            artist = song.get("artist", "")
+            title = song.get("title", "")
+            item = QListWidgetItem(f"☁ {artist} - {title}    [distant]")
+            item.setData(Qt.UserRole, f"remote::{filename}")
+            self.video_list.addItem(item)
+            remote_added += 1
+
+        total = len(local_files) + remote_added
         self.set_status(
-            f"● {len(files)} vidéo(s) détectée(s)"
-            if files else "● aucune vidéo MP4",
-            bool(files)
+            f"● {len(local_files)} vidéo(s) locale(s)"
+            f"{f' + {remote_added} distante(s)' if remote_added else ''}"
+            if total else "● aucune vidéo MP4",
+            bool(total)
         )
+
+    def _fetch_central_catalogue(self):
+        """Bibliotheque partagee du PC fixe (annuaire central), utilisee en
+        phase de test amis/famille quand ce poste n'a pas ses propres MP4."""
+        try:
+            request = urllib.request.Request(
+                "https://api.karonlinelive.com/catalogue",
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0"},
+                method="GET",
+            )
+            with urllib.request.urlopen(request, timeout=8) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+            return []
+
+    def _download_from_central_library(self, filename):
+        """Telecharge un MP4 de la bibliotheque partagee vers le dossier
+        media local ; renvoie le chemin local ou None en cas d'echec."""
+        destination = self.media_dir / filename
+        if destination.is_file():
+            return str(destination)
+        try:
+            self.media_dir.mkdir(parents=True, exist_ok=True)
+            request = urllib.request.Request(
+                "https://api.karonlinelive.com/request",
+                data=json.dumps({"title": filename}).encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0",
+                },
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=120) as response:
+                tmp_path = destination.with_suffix(".part")
+                with tmp_path.open("wb") as out:
+                    while chunk := response.read(1024 * 1024):
+                        out.write(chunk)
+                tmp_path.replace(destination)
+            return str(destination)
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            print(f"CENTRAL DOWNLOAD ERROR = {exc}", flush=True)
+            return None
 
     def play_selected_video(self, item):
         filename = item.data(Qt.UserRole)
         if not filename:
             return
+
+        if str(filename).startswith("remote::"):
+            remote_name = filename[len("remote::"):]
+            self.set_status(f"● Téléchargement de « {remote_name} »...", True)
+            QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+            try:
+                filename = self._download_from_central_library(remote_name)
+            finally:
+                QApplication.restoreOverrideCursor()
+            if not filename:
+                self.set_status(
+                    f"● Échec du téléchargement : « {remote_name} »", False
+                )
+                return
 
         # A direct library double-click means "play now". It becomes the
         # current song, while the existing queue remains intact.
