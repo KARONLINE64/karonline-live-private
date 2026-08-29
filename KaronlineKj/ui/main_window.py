@@ -1143,6 +1143,7 @@ class MainWindow(QMainWindow):
         self.clear_queue_button.clicked.connect(self.confirm_clear_queue)
 
         self.queue_add_btn = QPushButton("＋ AJOUTER UNE VIDÉO")
+        self.queue_remote_btn = QPushButton("☁ CATALOGUE DISTANT")
         self.queue_remove_btn = QPushButton("SUPPRIMER")
         self.add_favorite_button = QPushButton("AJOUTER AUX FAVORIS")
         self.add_favorite_button.clicked.connect(self.add_selected_to_favorites)
@@ -1151,13 +1152,14 @@ class MainWindow(QMainWindow):
         self.queue_play_btn = QPushButton("▶ LIRE MAINTENANT")
 
         for _act_btn in (
-            self.queue_add_btn, self.queue_remove_btn,
+            self.queue_add_btn, self.queue_remote_btn, self.queue_remove_btn,
             self.add_favorite_button, self.queue_up_btn,
             self.queue_down_btn, self.queue_play_btn,
         ):
             _act_btn.setStyleSheet("font-size:11px;padding:4px 6px;")
 
         acts.addWidget(self.queue_add_btn)
+        acts.addWidget(self.queue_remote_btn)
         acts.addWidget(self.clear_queue_button)
         acts.addWidget(self.queue_remove_btn)
         acts.addWidget(self.add_favorite_button)
@@ -1166,6 +1168,7 @@ class MainWindow(QMainWindow):
         acts.addWidget(self.queue_play_btn)
 
         self.queue_add_btn.clicked.connect(self.add_selected_video_to_queue)
+        self.queue_remote_btn.clicked.connect(self.add_remote_video_to_queue)
         self.queue_remove_btn.clicked.connect(self.remove_selected_queue_item)
         self.queue_up_btn.clicked.connect(lambda: self.move_selected_queue_item(-1))
         self.queue_down_btn.clicked.connect(lambda: self.move_selected_queue_item(1))
@@ -2939,6 +2942,48 @@ class MainWindow(QMainWindow):
         self.refresh_queue()
         self._select_queue_index(new_queue_index)
         self.set_status(f"● Ajouté à la file : {path.name}")
+
+    def add_remote_video_to_queue(self):
+        """Ajoute a la file un titre de la bibliotheque partagee du PC fixe,
+        telecharge a la demande (phase de test amis/famille)."""
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        try:
+            songs = self._fetch_central_catalogue()
+        finally:
+            QApplication.restoreOverrideCursor()
+        if not songs:
+            self.set_status("● Bibliothèque distante indisponible", False)
+            return
+
+        labels = [f"{s.get('artist', '')} - {s.get('title', '')}" for s in songs]
+        label, ok = QInputDialog.getItem(
+            self, "CATALOGUE DISTANT (PC fixe)",
+            "Choisir un titre :", labels, 0, True,
+        )
+        if not ok or not label:
+            return
+        filename = str(songs[labels.index(label)].get("filename", "")).strip()
+        if not filename:
+            return
+
+        self.set_status(f"● Téléchargement de « {label} »...", True)
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        try:
+            local_path = self._download_from_central_library(filename)
+        finally:
+            QApplication.restoreOverrideCursor()
+        if not local_path:
+            self.set_status(f"● Échec du téléchargement : « {label} »", False)
+            return
+
+        path = Path(local_path)
+        song = Song("", "", path.stem, 0)
+        self.song_files[id(song)] = str(path)
+        new_queue_index = len(self.queue.items)
+        self.queue.add(song)
+        self.refresh_queue()
+        self._select_queue_index(new_queue_index)
+        self.set_status(f"● Ajouté à la file (distant) : {path.name}", True)
 
     def _selected_queue_index(self):
         row = self.queue_list.currentRow()
