@@ -1,5 +1,6 @@
 ﻿from pathlib import Path
 import json
+import os
 import re
 import socket
 import subprocess
@@ -34,6 +35,15 @@ from core.lan_config import (
 from core.lan_request_receiver import LanRequestReceiver
 from core.central_auth import CentralAuthClient
 from ui.auth_dialog import AuthDialog
+
+
+def default_media_dir() -> Path:
+    """Dossier local des MP4 : jamais sous le dossier d'installation (souvent
+    Program Files, non inscriptible sans droits admin), toujours sous le
+    profil utilisateur courant."""
+    base = os.environ.get("LOCALAPPDATA") or str(Path.home())
+    return Path(base) / "KaronlineBox" / "media"
+
 
 STYLE = """
 QMainWindow,QWidget{background:#05090d;color:#f1f4f7;font-family:"Segoe UI";}
@@ -114,7 +124,7 @@ class MainWindow(QMainWindow):
         self.break_auto_timer.setSingleShot(True)
         self.break_auto_timer.timeout.connect(self._end_auto_break)
         self.song_files = {}
-        self.media_dir = Path(__file__).resolve().parent.parent / "media"
+        self.media_dir = default_media_dir()
         self.current_key_value = 0
 
         # V18: remote requests waiting for KJ validation.
@@ -2383,7 +2393,7 @@ class MainWindow(QMainWindow):
         fonctionne pas dans un exe PyInstaller gelé (sys.executable est
         l'exe lui-même, pas un interpréteur python).
         Renvoie (True, "") si ok, sinon (False, "message d'erreur")."""
-        media_dir = Path(__file__).resolve().parent.parent / "media"
+        media_dir = default_media_dir()
         try:
             media_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
@@ -2803,7 +2813,7 @@ class MainWindow(QMainWindow):
                 "● Catalogue indisponible sans connexion au compte", False
             )
             return
-        media_dir = Path(__file__).resolve().parent.parent / "media"
+        media_dir = default_media_dir()
         self.video_list.clear()
 
         local_files = []
