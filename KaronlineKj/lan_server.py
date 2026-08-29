@@ -199,10 +199,10 @@ def auth_verify_credentials(email: str, password: str) -> dict | None:
     return record
 
 
-def auth_issue_token(email: str) -> str:
+def auth_issue_token(email: str, kind: str = "site") -> str:
     token = secrets.token_urlsafe(32)
     with _AUTH_LOCK:
-        _tokens()[token] = {"email": email, "ts": time.time()}
+        _tokens()[token] = {"email": email, "ts": time.time(), "kind": kind}
         _save_json(TOKENS_PATH, _tokens())
     return token
 
@@ -214,15 +214,22 @@ def auth_revoke_token(token: str) -> None:
             _save_json(TOKENS_PATH, _tokens())
 
 
-def auth_has_active_token(email: str) -> bool:
-    """Un seul appareil connecte a la fois par compte."""
+def auth_has_active_token(email: str, kind: str) -> bool:
+    """Un seul appareil connecte a la fois par compte ET par type de client
+    (site web / KaronlineBox) : les deux doivent pouvoir etre connectes en
+    meme temps avec les memes identifiants (c'est la paire requise), mais pas
+    deux navigateurs, ni deux KaronlineBox, simultanement."""
     with _AUTH_LOCK:
-        return any(meta.get("email") == email for meta in _tokens().values())
+        return any(meta.get("email") == email and meta.get("kind", "site") == kind
+                   for meta in _tokens().values())
 
 
-def auth_revoke_tokens_for_email(email: str) -> None:
+def auth_revoke_tokens_for_email(email: str, kind: str | None = None) -> None:
+    """kind=None revoque tout (site + desktop), ex. reset de mot de passe."""
     with _AUTH_LOCK:
-        stale = [t for t, meta in _tokens().items() if meta.get("email") == email]
+        stale = [t for t, meta in _tokens().items()
+                 if meta.get("email") == email
+                 and (kind is None or meta.get("kind", "site") == kind)]
         for token in stale:
             _tokens().pop(token, None)
         if stale:
@@ -740,6 +747,11 @@ class RequestHandler(BaseHTTPRequestHandler):
         email = str(payload.get("email", "")).strip().casefold()
         password = str(payload.get("password", ""))
         force = bool(payload.get("force"))
+        # KaronlineBox et le site web doivent pouvoir etre connectes en meme
+        # temps avec les memes identifiants (paire requise, ex. verification
+        # d'identite avant liaison d'une carte bancaire) : la limite "un seul
+        # appareil a la fois" s'applique par type de client, pas globalement.
+        kind = "desktop" if "KaronlineBox" in self.headers.get("User-Agent", "") else "site"
         record = auth_verify_credentials(email, password)
         if record is None:
             print(f"LOGIN FAILED = {email}", flush=True)
@@ -749,15 +761,15 @@ class RequestHandler(BaseHTTPRequestHandler):
             print(f"LOGIN BLOCKED UNTIL VERIFICATION = {email}", flush=True)
             self._send_json(403, {"error": "EMAIL NOT VERIFIED"})
             return
-        if auth_has_active_token(email) and not force:
-            print(f"LOGIN BLOCKED ALREADY CONNECTED = {email}", flush=True)
+        if auth_has_active_token(email, kind) and not force:
+            print(f"LOGIN BLOCKED ALREADY CONNECTED = {email} ({kind})", flush=True)
             self._send_json(409, {"error": "ALREADY_CONNECTED"})
             return
-        auth_revoke_tokens_for_email(email)
+        auth_revoke_tokens_for_email(email, kind)
 
-        print(f"LOGIN OK = {email}", flush=True)
+        print(f"LOGIN OK = {email} ({kind})", flush=True)
         self._send_json(200, {
-            "token": auth_issue_token(email),
+            "token": auth_issue_token(email, kind),
             "email": email,
             "card_label": auth_card_label(record),
         })
