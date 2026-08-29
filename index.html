@@ -457,14 +457,41 @@
         <button class="password-toggle" type="button" data-password-toggle="login-password" aria-label="Afficher le mot de passe" aria-pressed="false">&#128065;</button>
       </div>
       <output id="login-result" class="request-result" aria-live="polite"></output>
+      <button id="forgot-password-trigger" type="button" class="host-change-link">Email et/ou mot de passe oublié ?</button>
       <div class="request-actions">
         <button class="button button-primary submit-button" type="submit">Connexion</button>
         <button class="button button-primary" type="button" data-close-dialog="login-dialog">Annuler</button>
       </div>
     </form>
   </dialog>
+  <dialog id="forgot-password-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="forgot-password-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p><h2>Récupérer mon compte</h2>
+    <div id="forgot-request-box">
+      <form id="forgot-password-form">
+        <label for="forgot-email">Adresse mail</label>
+        <input id="forgot-email" name="email" type="email" required placeholder="vous@exemple.com">
+        <div class="request-actions">
+          <button class="button button-primary submit-button" type="submit">Envoyer le code</button>
+        </div>
+      </form>
+    </div>
+    <div id="forgot-reset-box" hidden>
+      <form id="forgot-reset-form">
+        <input id="forgot-reset-email" type="hidden">
+        <label for="forgot-code">Code reçu par e-mail</label>
+        <input id="forgot-code" type="text" inputmode="numeric" required placeholder="123456">
+        <label for="forgot-new-password">Nouveau mot de passe</label>
+        <input id="forgot-new-password" type="password" required minlength="8" placeholder="8 caractères minimum">
+        <div class="request-actions">
+          <button class="button button-primary submit-button" type="submit">Valider</button>
+        </div>
+      </form>
+    </div>
+    <output id="forgot-result" class="request-result" aria-live="polite"></output>
+  </dialog>
   <script src="js/config.js?v=12"></script>
   <script src="js/app.js?v=12"></script>
-  <script src="js/auth.js?v=5"></script>
+  <script src="js/auth.js?v=6"></script>
 </body>
 </html>

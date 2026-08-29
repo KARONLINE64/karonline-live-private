@@ -23,6 +23,8 @@ const AUTH_ERRORS = {
   'CARD INVALID': 'Numéro de carte invalide.',
   'BAD REQUEST': 'Requête incomplète.',
   'TOKEN INVALID': 'Session expirée. Reconnectez-vous.',
+  'ALREADY_CONNECTED': 'Ce compte est déjà connecté ailleurs.',
+  'EMAIL NOT FOUND': 'Aucun compte avec cette adresse mail.',
 };
 
 function authReadState() {
@@ -240,14 +242,77 @@ async function handleSubmitLogin(event) {
     authRenderUI();
     if (typeof loadCatalogue === 'function') loadCatalogue();
   } catch (error) {
-    authFeedback('login-result', error.message, true);
+    if (error.code === 'ALREADY_CONNECTED') {
+      const confirmed = window.confirm(
+        'Ce compte est déjà connecté ailleurs. Se déconnecter de l’autre appareil et continuer ?'
+      );
+      if (confirmed) {
+        try {
+          const data = await authFetch('/auth/login', { email, password, force: true });
+          authSaveSession(data.token, data.email, data.card_label || '');
+          document.querySelector('#login-dialog')?.close();
+          authRenderUI();
+          if (typeof loadCatalogue === 'function') loadCatalogue();
+        } catch (retryError) {
+          authFeedback('login-result', retryError.message, true);
+        }
+      }
+    } else {
+      authFeedback('login-result', error.message, true);
+    }
   } finally {
     authIdle(form, 'Connexion');
     form.querySelector('#login-password').value = '';
   }
 }
 
+async function handleSubmitForgotPassword(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const email = form.querySelector('#forgot-email').value.trim();
+
+  authBusy(form, 'Envoi...');
+  try {
+    await authFetch('/auth/forgot', { email });
+    document.querySelector('#forgot-request-box').hidden = true;
+    document.querySelector('#forgot-reset-box').hidden = false;
+    document.querySelector('#forgot-reset-email').value = email;
+    document.querySelector('#forgot-code')?.focus();
+    authFeedback('forgot-result', 'Si ce compte existe, un code a été envoyé par e-mail.', false);
+  } catch (error) {
+    authFeedback('forgot-result', error.message, true);
+  } finally {
+    authIdle(form, 'Envoyer le code');
+  }
+}
+
+async function handleSubmitResetPassword(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const email = document.querySelector('#forgot-reset-email').value.trim();
+  const code = form.querySelector('#forgot-code').value.trim();
+  const password = form.querySelector('#forgot-new-password').value;
+
+  authBusy(form, 'Validation...');
+  try {
+    await authFetch('/auth/reset', { email, code, password });
+    document.querySelector('#forgot-password-dialog')?.close();
+    document.querySelector('#forgot-request-box').hidden = false;
+    document.querySelector('#forgot-reset-box').hidden = true;
+    form.reset();
+    authFeedback('login-result', 'Mot de passe modifié. Connectez-vous avec le nouveau.', false);
+    document.querySelector('#login-dialog')?.showModal();
+  } catch (error) {
+    authFeedback('forgot-result', error.message, true);
+  } finally {
+    authIdle(form, 'Valider');
+  }
+}
+
 async function handleLogout() {
+  const confirmed = window.confirm('Vous voulez vraiment vous déconnecter ?');
+  if (!confirmed) return;
+
   const state = authReadState();
   try {
     if (state.token) await authFetch('/auth/logout', {}, state.token);
@@ -256,6 +321,9 @@ async function handleLogout() {
   }
   authClearSession();
   authRenderUI();
+
+  const reconnect = window.confirm('Se connecter avec un autre compte ?');
+  if (reconnect) document.querySelector('#login-dialog')?.showModal();
 }
 
 function initAuthPage() {
@@ -284,6 +352,15 @@ function initAuthPage() {
     ?.addEventListener('click', handleResendVerificationCode);
   document.querySelector('#login-form')
     ?.addEventListener('submit', handleSubmitLogin);
+  document.querySelector('#forgot-password-form')
+    ?.addEventListener('submit', handleSubmitForgotPassword);
+  document.querySelector('#forgot-reset-form')
+    ?.addEventListener('submit', handleSubmitResetPassword);
+  document.querySelector('#forgot-password-trigger')
+    ?.addEventListener('click', () => {
+      document.querySelector('#login-dialog')?.close();
+      document.querySelector('#forgot-password-dialog')?.showModal();
+    });
   document.querySelectorAll('[data-logout]').forEach((button) => {
     button.addEventListener('click', handleLogout);
   });
