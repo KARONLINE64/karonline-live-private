@@ -5,8 +5,10 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from PySide6.QtCore import Qt, QTimer, QSettings
 from PySide6.QtGui import QFont, QCursor, QAction, QGuiApplication, QPixmap
@@ -917,7 +919,7 @@ class MainWindow(QMainWindow):
 
         nav = QHBoxLayout()
         logo = QLabel()
-        logo_path = Path(__file__).resolve().parent / "box.jpg"
+        logo_path = Path(__file__).resolve().parent / "kb_logo_luxury.png"
         logo_pixmap = QPixmap(str(logo_path))
         if not logo_pixmap.isNull():
             logo.setPixmap(
@@ -980,7 +982,10 @@ class MainWindow(QMainWindow):
 
         left = QVBoxLayout()
 
-        box = QFrame()
+        # N'est visible que sous l'onglet FILE D'ATTENTE (voir show_main_view) :
+        # inutile ailleurs et ca reduit la hauteur disponible pour les formulaires.
+        self.live_box = QFrame()
+        box = self.live_box
         box.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         lay = QVBoxLayout(box)
         lay.setContentsMargins(8, 4, 8, 4)
@@ -1012,6 +1017,7 @@ class MainWindow(QMainWindow):
         left.addWidget(box)
 
         nb = QFrame()
+        self.next_box = nb
         nb.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         nl = QVBoxLayout(nb)
         nl.setContentsMargins(8, 4, 8, 4)
@@ -1582,27 +1588,6 @@ class MainWindow(QMainWindow):
 
         bottom = QHBoxLayout()
 
-        self.lan_test_button = QPushButton("🧪 TESTER LA DEMANDE LAN")
-        self.lan_test_button.setToolTip(
-            "Prototype temporaire : demander un MP4 via l'API LAN et le lire dans KaronlineBox"
-        )
-        self.lan_test_button.clicked.connect(self.open_lan_test_dialog)
-        self.lan_test_button.setStyleSheet(
-            """
-            QPushButton {
-                color:#f1f4f7;
-                background:#17232d;
-                border:1px solid #344b5d;
-                padding:6px 12px;
-                border-radius:4px;
-            }
-            QPushButton:hover {
-                background:#203544;
-            }
-            """
-        )
-        bottom.addWidget(self.lan_test_button)
-
         kb = QGroupBox("CHANGEUR DE TONALITÉ")
         kl = QHBoxLayout(kb)
         self.key_buttons = {}
@@ -2012,121 +1997,6 @@ class MainWindow(QMainWindow):
         if hasattr(self, "demands_empty"):
             self.demands_empty.hide()
 
-
-    def open_lan_test_dialog(self):
-        """Simulateur de client distant pour alimenter DEMANDES."""
-        dialog = QDialog(self)
-        dialog.setWindowTitle("TESTER LA DEMANDE LAN")
-        dialog.resize(520, 320)
-
-        layout = QVBoxLayout(dialog)
-        info = QLabel(
-            "Envoie une demande distante dans l'onglet DEMANDES. Le MP4 sera téléchargé uniquement à la lecture."
-        )
-        info.setWordWrap(True)
-        layout.addWidget(info)
-
-        form = QGridLayout()
-        server_edit = QLineEdit(LAN_TEST_SERVER)
-        port_edit = QLineEdit(str(LAN_MEDIA_PORT))
-        client_ip_edit = QLineEdit(self._detect_lan_client_ip(server_edit.text()))
-        singer_edit = QLineEdit()
-        artist_edit = QLineEdit()
-        title_edit = QLineEdit()
-        key_spin = QSpinBox()
-        key_spin.setRange(-12, 12)
-        key_spin.setValue(0)
-        key_spin.setSuffix(" demi-ton(s)")
-
-        form.addWidget(QLabel("Serveur IP"), 0, 0)
-        form.addWidget(server_edit, 0, 1)
-        form.addWidget(QLabel("Port"), 1, 0)
-        form.addWidget(port_edit, 1, 1)
-        form.addWidget(QLabel("IP KaronlineBox client"), 2, 0)
-        form.addWidget(client_ip_edit, 2, 1)
-        form.addWidget(QLabel("Chanteur"), 3, 0)
-        form.addWidget(singer_edit, 3, 1)
-        form.addWidget(QLabel("Artiste"), 4, 0)
-        form.addWidget(artist_edit, 4, 1)
-        form.addWidget(QLabel("Titre"), 5, 0)
-        form.addWidget(title_edit, 5, 1)
-        form.addWidget(QLabel("Tonalité"), 6, 0)
-        form.addWidget(key_spin, 6, 1)
-        layout.addLayout(form)
-
-        send_button = QPushButton("ENVOYER LA DEMANDE")
-        close_button = QPushButton("FERMER")
-        send_button.clicked.connect(
-            lambda: self._send_lan_request(
-                server_edit,
-                port_edit,
-                client_ip_edit,
-                singer_edit,
-                artist_edit,
-                title_edit,
-                key_spin,
-            )
-        )
-        close_button.clicked.connect(dialog.close)
-        buttons = QHBoxLayout()
-        buttons.addWidget(send_button)
-        buttons.addWidget(close_button)
-        layout.addLayout(buttons)
-        dialog.show()
-
-    def _send_lan_request(
-        self, server_edit, port_edit, client_ip_edit, singer_edit, artist_edit, title_edit, key_spin
-    ):
-        server = server_edit.text().strip() or LAN_TEST_SERVER
-        client_ip = client_ip_edit.text().strip()
-        singer = singer_edit.text().strip()
-        artist = artist_edit.text().strip()
-        title = title_edit.text().strip()
-        try:
-            port = int(port_edit.text().strip() or LAN_MEDIA_PORT)
-        except ValueError:
-            QMessageBox.warning(self, "PARAMÈTRES INVALIDES", "Le port doit être un nombre valide.")
-            return
-        if not client_ip or not singer or not artist or not title:
-            QMessageBox.warning(self, "DEMANDE INCOMPLÈTE", "Chanteur, artiste et titre sont obligatoires.")
-            return
-
-        import urllib.request
-        import json
-
-        payload = json.dumps({
-            "singer": singer,
-            "artist": artist,
-            "title": title,
-            "key": key_spin.value(),
-            "client_ip": client_ip,
-        }).encode("utf-8")
-        request = urllib.request.Request(
-            f"http://{server}:{port}/request-demand",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urllib.request.urlopen(request, timeout=10) as response:
-                if response.status != 202:
-                    raise RuntimeError(f"HTTP {response.status}")
-            self.set_status(f"● Demande LAN envoyée : {title}", True)
-        except (urllib.error.URLError, TimeoutError, OSError, RuntimeError) as exc:
-            self.set_status(f"● DEMANDE LAN : {exc}", False)
-            QMessageBox.warning(self, "DEMANDE LAN", str(exc), QMessageBox.Ok)
-
-    @staticmethod
-    def _detect_lan_client_ip(server):
-        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            probe.connect((server, LAN_MEDIA_PORT))
-            return probe.getsockname()[0]
-        except OSError:
-            return ""
-        finally:
-            probe.close()
-
     def _apply_kj_video_size(self, checked=False):
         """Applique la taille vidéo KJ : 50 %, 30 % ou 20 % de la largeur réelle."""
         if not hasattr(self, "kj_video_grid"):
@@ -2276,6 +2146,12 @@ class MainWindow(QMainWindow):
         self.break_auto_duration.valueChanged.connect(lambda v:self.settings.setValue("break_auto_duration",v))
 
     def show_main_view(self, view):
+        # LIVE/SUIVANT ne sont utiles que pour la FILE D'ATTENTE : masques
+        # ailleurs pour rendre de la hauteur aux formulaires (demandes,
+        # favoris, reglages).
+        self.live_box.setVisible(view == "queue")
+        self.next_box.setVisible(view == "queue")
+
         if view == "demands":
             self.queue_area_stack.setCurrentIndex(1)
             self.refresh_requests()
@@ -2412,7 +2288,8 @@ class MainWindow(QMainWindow):
         self.set_status(f"● Demande supprimée : {removed.get('title', '')}", True)
 
     def start_public_session(self):
-        """Demarre lan_server.py + un tunnel Cloudflare et enregistre le nom de session."""
+        """Enregistre le nom de session et démarre le relais central (aucun
+        tunnel/port entrant requis : uniquement une connexion sortante)."""
         if not self.ensure_central_login():
             self.set_status(
                 "● Connexion au compte requise pour démarrer une session",
@@ -2420,7 +2297,7 @@ class MainWindow(QMainWindow):
             )
             return
         name = re.sub(
-            r"[^a-z0-9-]", "-",
+            r"[^a-z0-9_-]", "-",
             self.session_name_input.text().strip().lower()
         ).strip("-")
 
@@ -2432,39 +2309,50 @@ class MainWindow(QMainWindow):
             return
 
         self.session_start_btn.setEnabled(False)
-        self.session_status_label.setText("● Démarrage du serveur LAN...")
-
-        karonline_kj_dir = Path(__file__).resolve().parent.parent
+        self.session_status_label.setText("● Démarrage du serveur local...")
 
         if not self._is_port_open("127.0.0.1", 8765):
-            subprocess.Popen(
-                [sys.executable, "lan_server.py", "--port", "8765"],
-                cwd=str(karonline_kj_dir),
-                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
-            )
+            if not self._start_local_catalogue_server():
+                self.session_start_btn.setEnabled(True)
+                self.session_status_label.setText(
+                    "● Impossible de démarrer le serveur catalogue local"
+                    " (dossier media introuvable)."
+                )
+                return
 
-        cloudflared = Path.home() / "AppData" / "Local" / "cloudflared" / "cloudflared.exe"
-        if not cloudflared.is_file():
-            self.session_start_btn.setEnabled(True)
-            self.session_status_label.setText(
-                f"● cloudflared introuvable ({cloudflared})"
-            )
-            return
+        self.session_status_label.setText("● Enregistrement de la session...")
+        success, error_info = self._register_relay_session(name)
+        if not success:
+            error_code = (error_info or {}).get("error", "")
+            if error_code == "SESSION_ALREADY_EXISTS":
+                existing_name = (error_info or {}).get("existing_name", "")
+                reply = QMessageBox.question(
+                    self, "SESSION DÉJÀ EXISTANTE",
+                    f"Une session (« {existing_name} ») est déjà active ailleurs"
+                    f" avec ce compte. La remplacer par « {name} » ?",
+                    QMessageBox.Yes | QMessageBox.No,
+                )
+                if reply == QMessageBox.Yes:
+                    success, error_info = self._register_relay_session(name, force=True)
+            if not success:
+                self.session_start_btn.setEnabled(True)
+                self.session_status_label.setText(
+                    f"● Erreur d'enregistrement : {(error_info or {}).get('error', 'inconnue')}"
+                )
+                return
 
-        self._tunnel_log = Path(tempfile.gettempdir()) / "kbox_tunnel.log"
-        self._tunnel_log.unlink(missing_ok=True)
-        subprocess.Popen(
-            [str(cloudflared), "tunnel", "--url", "http://localhost:8765"],
-            stderr=open(self._tunnel_log, "w", encoding="utf-8"),
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        self._relay_stop = False
+        self._relay_thread = threading.Thread(
+            target=self._relay_loop, args=(name,), daemon=True
         )
+        self._relay_thread.start()
 
-        self.session_status_label.setText("● Ouverture du tunnel public...")
-        self._session_pending_name = name
-        self._session_wait_ticks = 0
-        self._session_timer = QTimer(self)
-        self._session_timer.timeout.connect(self._poll_tunnel_log)
-        self._session_timer.start(1000)
+        self.session_status_label.setText(
+            f"● Session active ({self.central_auth.email or 'compte'}) :"
+            f" « {name} » — partagez ce nom à vos invités sur karonlinelive.com"
+        )
+        self.set_status(f"● Session « {name} » démarrée", True)
+        self.session_start_btn.setEnabled(True)
 
     @staticmethod
     def _is_port_open(host, port):
@@ -2478,50 +2366,128 @@ class MainWindow(QMainWindow):
         finally:
             probe.close()
 
-    def _poll_tunnel_log(self):
-        self._session_wait_ticks += 1
-        text = self._tunnel_log.read_text(encoding="utf-8", errors="ignore") if self._tunnel_log.exists() else ""
-        match = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", text)
-
-        if not match:
-            if self._session_wait_ticks >= 30:
-                self._session_timer.stop()
-                self.session_start_btn.setEnabled(True)
-                self.session_status_label.setText(
-                    "● Impossible d'ouvrir le tunnel (délai dépassé)."
-                )
-            return
-
-        self._session_timer.stop()
-        host_url = match.group(0)
-
+    @staticmethod
+    def _start_local_catalogue_server():
+        """Démarre le serveur catalogue local (port 8765) dans un thread du
+        process courant : un subprocess `sys.executable lan_server.py` ne
+        fonctionne pas dans un exe PyInstaller gelé (sys.executable est
+        l'exe lui-même, pas un interpréteur python)."""
+        media_dir = Path(__file__).resolve().parent.parent / "media"
+        if not media_dir.is_dir():
+            print(f"LOCAL CATALOGUE SERVER ERROR = dossier introuvable {media_dir}", flush=True)
+            return False
         try:
-            payload = json.dumps({
-                "name": self._session_pending_name,
-                "host_url": host_url,
-            }).encode("utf-8")
-            request = urllib.request.Request(
-                "https://api.karonlinelive.com/session/register",
-                data=payload,
-                headers={
-                    **self.central_auth.authorization_header(),
-                    "Content-Type": "application/json",
-                },
-                method="POST",
-            )
+            import lan_server
+            server = lan_server.ThreadingHTTPServer(("0.0.0.0", 8765), lan_server.RequestHandler)
+            server.library = media_dir
+            server.request_port = 8766
+        except OSError as exc:
+            print(f"LOCAL CATALOGUE SERVER ERROR = {exc}", flush=True)
+            return False
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        return True
+
+    def _register_relay_session(self, name, force=False):
+        """Enregistre le nom de session aupres du relais central. Renvoie
+        (True, None) si ok, sinon (False, {"error": ..., ...})."""
+        payload = json.dumps({
+            "name": name, "mode": "relay", "force": force,
+        }).encode("utf-8")
+        request = urllib.request.Request(
+            "https://api.karonlinelive.com/session/register",
+            data=payload,
+            headers={
+                **self.central_auth.authorization_header(),
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0",
+            },
+            method="POST",
+        )
+        try:
             with urllib.request.urlopen(request, timeout=10) as response:
                 if response.status != 200:
-                    raise RuntimeError(f"HTTP {response.status}")
-            self.session_status_label.setText(
-                f"● Session active ({self.central_auth.email or 'compte'}) :"
-                f" « {self._session_pending_name} »"
-                " — partagez ce nom à vos invités sur karonlinelive.com"
-            )
-            self.set_status(f"● Session « {self._session_pending_name} » démarrée", True)
-        except (urllib.error.URLError, TimeoutError, OSError, RuntimeError) as exc:
-            self.session_status_label.setText(f"● Erreur d'enregistrement : {exc}")
-        finally:
-            self.session_start_btn.setEnabled(True)
+                    return False, {"error": f"HTTP {response.status}"}
+            return True, None
+        except urllib.error.HTTPError as exc:
+            try:
+                body = json.loads(exc.read().decode("utf-8"))
+            except (ValueError, UnicodeDecodeError):
+                body = {}
+            return False, body
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            return False, {"error": str(exc)}
+
+    def _relay_loop(self, name):
+        """Boucle de fond : long-poll sortant vers le relais central, puis
+        exécution locale (catalogue/demande) et renvoi du résultat. Ne requiert
+        aucun port entrant ni tunnel — uniquement des requêtes HTTP sortantes."""
+        user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0"
+        quoted_name = urllib.parse.quote(name)
+        while not getattr(self, "_relay_stop", False):
+            try:
+                pull_request = urllib.request.Request(
+                    f"https://api.karonlinelive.com/relay/pull?name={quoted_name}",
+                    headers={
+                        **self.central_auth.authorization_header(),
+                        "User-Agent": user_agent,
+                    },
+                    method="GET",
+                )
+                with urllib.request.urlopen(pull_request, timeout=30) as response:
+                    data = json.loads(response.read().decode("utf-8"))
+            except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+                time.sleep(2)
+                continue
+
+            job_id = data.get("job_id")
+            if not job_id:
+                continue
+
+            job_type = data.get("type")
+            payload = data.get("payload") or {}
+            status, body = 500, {"error": "UNKNOWN JOB TYPE"}
+            try:
+                if job_type == "catalogue":
+                    with urllib.request.urlopen(
+                        "http://127.0.0.1:8765/catalogue", timeout=5
+                    ) as local_response:
+                        status = local_response.status
+                        body = json.loads(local_response.read().decode("utf-8"))
+                elif job_type == "request-demand":
+                    demand_payload = dict(payload)
+                    demand_payload["client_ip"] = "127.0.0.1"
+                    local_request = urllib.request.Request(
+                        "http://127.0.0.1:8765/request-demand",
+                        data=json.dumps(demand_payload).encode("utf-8"),
+                        headers={"Content-Type": "application/json"},
+                        method="POST",
+                    )
+                    try:
+                        with urllib.request.urlopen(local_request, timeout=5) as local_response:
+                            status = local_response.status
+                            body = json.loads(local_response.read().decode("utf-8"))
+                    except urllib.error.HTTPError as http_error:
+                        status = http_error.code
+                        body = json.loads(http_error.read().decode("utf-8"))
+            except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+                status, body = 500, {"error": str(exc)}
+
+            try:
+                push_request = urllib.request.Request(
+                    "https://api.karonlinelive.com/relay/push",
+                    data=json.dumps({
+                        "job_id": job_id, "status": status, "body": body,
+                    }).encode("utf-8"),
+                    headers={
+                        **self.central_auth.authorization_header(),
+                        "Content-Type": "application/json",
+                        "User-Agent": user_agent,
+                    },
+                    method="POST",
+                )
+                urllib.request.urlopen(push_request, timeout=10).close()
+            except (urllib.error.URLError, TimeoutError, OSError):
+                pass
 
     def _known_singer_names(self):
         names = set()
@@ -2716,15 +2682,38 @@ class MainWindow(QMainWindow):
         if hasattr(self, "account_btn"):
             if connected:
                 suffix = f" — {info.get('card')}" if info.get("card") else ""
-                self.account_btn.setText(
-                    f"👤 COMPTE : {info.get('email')}{suffix}"
-                )
+                self._account_btn_label = f"Connecté : {info.get('email')}{suffix}"
+                self._start_account_blink()
             else:
+                self._stop_account_blink()
                 self.account_btn.setText("👤 COMPTE : non connecté")
+                self.account_btn.setStyleSheet("")
         self.setWindowTitle(
             f"KaronlineBox — compte {info.get('email')}" if connected
             else "KaronlineBox"
         )
+
+    def _start_account_blink(self):
+        """Point vert clignotant a cote du texte 'Connecte' sur le bouton compte."""
+        if not hasattr(self, "_account_blink_timer"):
+            self._account_blink_timer = QTimer(self)
+            self._account_blink_timer.timeout.connect(self._toggle_account_blink)
+        self._account_blink_on = True
+        self.account_btn.setStyleSheet(
+            "background:#1c7c3f; color:#f1f4f7; font-weight:600;"
+            "border:1px solid #2fa257; border-radius:4px; padding:4px 10px;"
+        )
+        self._toggle_account_blink()
+        self._account_blink_timer.start(700)
+
+    def _stop_account_blink(self):
+        if hasattr(self, "_account_blink_timer"):
+            self._account_blink_timer.stop()
+
+    def _toggle_account_blink(self):
+        dot = "🟢" if self._account_blink_on else "⚪"
+        self._account_blink_on = not self._account_blink_on
+        self.account_btn.setText(f"{dot} {getattr(self, '_account_btn_label', 'Connecté')}")
 
     def open_account_dialog(self):
         """Bouton COMPTE : connexion/enregistrement ou infos + déconnexion."""

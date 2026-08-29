@@ -5,9 +5,11 @@ import json
 import ipaddress
 import re
 import socket
+import threading
 import time
 import urllib.error
 import urllib.request
+import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
@@ -15,11 +17,21 @@ from urllib.parse import unquote, urlparse
 
 DEFAULT_LIBRARY = Path(__file__).resolve().parent.parent / "SERVER"
 
-# Annuaire de sessions en memoire : nom choisi par le KJ -> URL de son tunnel.
-# Sert uniquement sur l'instance centrale (api.karonlinelive.com).
+# Annuaire de sessions en memoire : nom choisi par le KJ -> etat de sa
+# session (mode relais = connexion sortante uniquement, aucun tunnel/port
+# entrant requis chez le KJ). Sert uniquement sur l'instance centrale
+# (api.karonlinelive.com).
 SESSIONS: dict[str, dict] = {}
 SESSION_TTL_SECONDS = 24 * 3600
-SESSION_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,39}$")
+SESSION_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{1,39}$")
+
+# Files d'attente de jobs (relais long-polling) : job_id -> etat. Chaque
+# session possede une file "queue" de job_id en attente d'etre tires par
+# KaronlineBox via /relay/pull, puis le resultat est depose via /relay/push.
+RELAY_JOBS: dict[str, dict] = {}
+_RELAY_LOCK = threading.RLock()
+RELAY_PULL_TIMEOUT_SECONDS = 25
+RELAY_JOB_TIMEOUT_SECONDS = 12
 
 # ---------------------------------------------------------------------------
 # Comptes KJ (identifiant = adresse mail). Phase de test amis/famille :
@@ -29,7 +41,6 @@ import hashlib  # noqa: E402
 import hmac  # noqa: E402
 import os  # noqa: E402
 import secrets  # noqa: E402
-import threading  # noqa: E402
 
 DATA_DIR = Path(os.environ.get("KL_DATA_DIR",
                                Path(__file__).resolve().parent))
@@ -47,6 +58,7 @@ PBKDF2_ITERATIONS = 120_000
 _AUTH_LOCK = threading.RLock()
 _ACCOUNTS: dict[str, dict] | None = None
 _TOKENS: dict[str, dict] | None = None
+_VERIFICATIONS: dict[str, dict] = {}
 
 
 def _load_json(path: Path, default):
@@ -106,6 +118,7 @@ def auth_create_account(email: str, password: str,
         "card_last4": "".join(ch for ch in str(card_last4 or "")
                               if ch.isdigit())[-4:],
         "created": int(now),
+        "verified": False,
     }
     with _AUTH_LOCK:
         accounts = _accounts()
@@ -114,6 +127,65 @@ def auth_create_account(email: str, password: str,
         accounts[email] = record
         _save_json(ACCOUNTS_PATH, accounts)
     return email
+
+
+def _verification_hash(code: str) -> str:
+    return hashlib.sha256(str(code or "").strip().encode("utf-8")).hexdigest()
+
+
+def _generate_verification_code() -> str:
+    return f"{secrets.randbelow(1_000_000):06d}"
+
+
+def _send_verification_email(email: str, code: str) -> tuple[bool, str]:
+    api_key = os.environ.get("KL_BREVO_API_KEY") or os.environ.get("BREVO_API_KEY") or ""
+    if not api_key:
+        if os.environ.get("KL_DEBUG_VERIFY_CODE", "0").lower() in {"1", "true", "yes", "on"}:
+            print(f"VERIFY CODE = {email} {code}", flush=True)
+            return True, "debug"
+        return False, "NO_BREVO_API_KEY"
+
+    sender_email = (
+        os.environ.get("KL_BREVO_SENDER_EMAIL")
+        or os.environ.get("BREVO_SENDER_EMAIL")
+        or "noreply@karonlinelive.com"
+    )
+    payload = {
+        "sender": {"name": "KaronlineLive", "email": sender_email},
+        "to": [{"email": email, "name": email}],
+        "subject": "Votre code de vérification KaronlineLive",
+        "htmlContent": (
+            f"<p>Votre code de vérification est <strong>{code}</strong>.</p>"
+            f"<p>Il expire dans 10 minutes.</p>"
+        ),
+        "textContent": f"Votre code de vérification KaronlineLive est {code}. Il expire dans 10 minutes.",
+    }
+    request = urllib.request.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "api-key": api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return response.status < 400, response.read().decode("utf-8", errors="replace")
+    except Exception as exc:  # pragma: no cover - réseau / config externe
+        print(f"BREVO ERROR = {exc}", flush=True)
+        return False, str(exc)
+
+
+def _issue_verification_code(email: str) -> str:
+    code = _generate_verification_code()
+    with _AUTH_LOCK:
+        _VERIFICATIONS[email] = {
+            "code_hash": _verification_hash(code),
+            "expires_at": time.time() + 600,
+        }
+    return code
 
 
 def auth_verify_credentials(email: str, password: str) -> dict | None:
@@ -140,6 +212,33 @@ def auth_revoke_token(token: str) -> None:
         if token in _tokens():
             _tokens().pop(token)
             _save_json(TOKENS_PATH, _tokens())
+
+
+def auth_has_active_token(email: str) -> bool:
+    """Un seul appareil connecte a la fois par compte."""
+    with _AUTH_LOCK:
+        return any(meta.get("email") == email for meta in _tokens().values())
+
+
+def auth_revoke_tokens_for_email(email: str) -> None:
+    with _AUTH_LOCK:
+        stale = [t for t, meta in _tokens().items() if meta.get("email") == email]
+        for token in stale:
+            _tokens().pop(token, None)
+        if stale:
+            _save_json(TOKENS_PATH, _tokens())
+
+
+def auth_set_password(email: str, new_password: str) -> None:
+    with _AUTH_LOCK:
+        record = _accounts().get(email)
+        if record is None:
+            return
+        salt = secrets.token_hex(16)
+        record["salt"] = salt
+        record["password_hash"] = _hash_password(new_password, salt)
+        _save_json(ACCOUNTS_PATH, _accounts())
+    auth_revoke_tokens_for_email(email)
 
 
 def auth_resolve_token(token: str) -> str | None:
@@ -171,6 +270,72 @@ def detect_lan_ip():
         probe.close()
 
 
+# ---------------------------------------------------------------------------
+# Relais central (mode "outbound-only") : KaronlineBox n'ouvre plus aucun
+# port entrant ni tunnel. Il tire (long-poll) les jobs en attente pour sa
+# session via /relay/pull, les execute localement, puis renvoie le resultat
+# via /relay/push. Les clients mobiles/PC declenchent un job via
+# /session/<nom>/catalogue ou /session/<nom>/request-demand et attendent
+# (bloquant, avec timeout) que KaronlineBox le resolve.
+def _relay_run_job(name: str, job_type: str, payload: dict) -> tuple[int, dict]:
+    entry = SESSIONS.get(name)
+    if entry is None or time.time() - entry["ts"] > SESSION_TTL_SECONDS:
+        SESSIONS.pop(name, None)
+        return 404, {"error": "SESSION NOT FOUND"}
+
+    job_id = uuid.uuid4().hex
+    event = threading.Event()
+    job = {
+        "job_id": job_id, "session": name, "type": job_type,
+        "payload": payload, "event": event, "status": None, "body": None,
+    }
+    with _RELAY_LOCK:
+        RELAY_JOBS[job_id] = job
+        entry.setdefault("queue", []).append(job_id)
+
+    resolved = event.wait(timeout=RELAY_JOB_TIMEOUT_SECONDS)
+    with _RELAY_LOCK:
+        RELAY_JOBS.pop(job_id, None)
+
+    if not resolved:
+        return 504, {"error": "KARONLINEBOX TIMEOUT"}
+    return job["status"] or 500, job["body"] if job["body"] is not None else {}
+
+
+def _relay_pull(name: str):
+    entry = SESSIONS.get(name)
+    if entry is None:
+        return None
+    entry["ts"] = time.time()  # heartbeat : garde la session vivante
+
+    deadline = time.time() + RELAY_PULL_TIMEOUT_SECONDS
+    while time.time() < deadline:
+        with _RELAY_LOCK:
+            queue = entry.setdefault("queue", [])
+            if queue:
+                job_id = queue.pop(0)
+                job = RELAY_JOBS.get(job_id)
+                if job is not None:
+                    return job
+                continue
+        time.sleep(0.3)
+    return None
+
+
+def _relay_push(job_id: str, owner: str, status: int, body: dict) -> bool:
+    with _RELAY_LOCK:
+        job = RELAY_JOBS.get(job_id)
+        if job is None:
+            return False
+        entry = SESSIONS.get(job["session"])
+        if entry is None or entry.get("owner") != owner:
+            return False
+        job["status"] = status
+        job["body"] = body
+    job["event"].set()
+    return True
+
+
 class RequestHandler(BaseHTTPRequestHandler):
     server_version = "KaronlineLAN/1.0"
 
@@ -180,7 +345,10 @@ class RequestHandler(BaseHTTPRequestHandler):
     def _send_cors_headers(self):
         """Autoriser le site local, reseau prive, Tailscale, et domaine public karonlinelive.com."""
         origin = self.headers.get("Origin", "")
-        if not origin:
+        if not origin or origin == "null":
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
             return
 
         parsed = urlparse(origin)
@@ -206,10 +374,12 @@ class RequestHandler(BaseHTTPRequestHandler):
                 or hostname.endswith(".karonlinelive.com")
             ):
                 allow_origin = True
-        
+
         if allow_origin:
             self.send_header("Access-Control-Allow-Origin", origin)
             self.send_header("Vary", "Origin")
+        else:
+            self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
         self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 
@@ -218,7 +388,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         path = urlparse(self.path).path
         if path in {"/catalogue", "/request-demand", "/download/karonlinebox",
                     "/session/register", "/auth/register", "/auth/login",
-                    "/auth/logout"} \
+                    "/auth/verify", "/auth/resend", "/auth/logout",
+                    "/auth/forgot", "/auth/reset",
+                    "/relay/pull", "/relay/push"} \
                 or path.startswith("/session/") or path.startswith("/auth/"):
             self.send_response(200)
             self._send_cors_headers()
@@ -258,15 +430,56 @@ class RequestHandler(BaseHTTPRequestHandler):
             })
             return
 
-        # Endpoint: GET /session/<nom> - resoudre un nom de session vers l'URL de l'hote
+        # Endpoint: GET /session/<nom> - resoudre un nom de session (legacy :
+        # renvoie host_url si l'hote expose un tunnel ; sinon mode relais).
+        # Endpoint: GET /session/<nom>/catalogue - relais long-polling du
+        # catalogue de l'hote (aucun port entrant requis chez le KJ).
         if path.startswith("/session/"):
-            name = unquote(path[len("/session/"):]).strip().casefold()
+            remainder = unquote(path[len("/session/"):]).strip()
+            parts = remainder.split("/", 1)
+            name = parts[0].casefold()
             entry = SESSIONS.get(name)
             if entry is None or time.time() - entry["ts"] > SESSION_TTL_SECONDS:
                 SESSIONS.pop(name, None)
                 self._send_json(404, {"error": "SESSION NOT FOUND"})
                 return
-            self._send_json(200, {"host_url": entry["host_url"]})
+
+            if len(parts) == 1:
+                if entry.get("host_url"):
+                    self._send_json(200, {"host_url": entry["host_url"]})
+                else:
+                    self._send_json(200, {"relay": True})
+                return
+
+            if parts[1] == "catalogue":
+                status, body = _relay_run_job(name, "catalogue", {})
+                self._send_json(status, body)
+                return
+
+            self._send_json(404, {"error": "NOT FOUND"})
+            return
+
+        # Endpoint: GET /relay/pull - KaronlineBox tire (long-poll) le prochain
+        # job en attente pour sa session. Requiert une session authentifiee.
+        if path == "/relay/pull":
+            owner = self._bearer_email()
+            if not owner:
+                self._send_json(401, {"error": "AUTH REQUIRED"})
+                return
+            query = urlparse(self.path).query
+            params = dict(pair.split("=", 1) for pair in query.split("&") if "=" in pair)
+            name = unquote(params.get("name", "")).strip().casefold()
+            entry = SESSIONS.get(name)
+            if entry is None or entry.get("owner") != owner:
+                self._send_json(404, {"error": "SESSION NOT FOUND"})
+                return
+            job = _relay_pull(name)
+            if job is None:
+                self._send_json(200, {"job_id": None})
+                return
+            self._send_json(200, {
+                "job_id": job["job_id"], "type": job["type"], "payload": job["payload"],
+            })
             return
 
         # Endpoint: GET /catalogue
@@ -289,6 +502,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             # Chercher le fichier setup dans les emplacements courants
             setup_paths = [
                 self.server.library.parent / "KaronlineBox_Install" / "KaronlineBox_Installer.exe",
+                self.server.library.parent / "KaronlineKj" / "karonlinebox_setup.exe",
+                Path.cwd() / "karonlinebox_setup.exe",
+                Path.cwd().parent / "karonlinebox_setup.exe",
                 self.server.library.parent / "KaronlineKj" / "setup.exe",
                 Path.cwd() / "setup.exe",
                 Path.cwd().parent / "setup.exe",
@@ -329,8 +545,20 @@ class RequestHandler(BaseHTTPRequestHandler):
         if self.path == "/auth/register":
             self._auth_register()
             return
+        if self.path == "/auth/verify":
+            self._auth_verify()
+            return
+        if self.path == "/auth/resend":
+            self._auth_resend()
+            return
         if self.path == "/auth/login":
             self._auth_login()
+            return
+        if self.path == "/auth/forgot":
+            self._auth_forgot()
+            return
+        if self.path == "/auth/reset":
+            self._auth_reset()
             return
         if self.path == "/auth/logout":
             self._auth_logout()
@@ -340,6 +568,13 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/request-demand":
             self._relay_demand()
+            return
+        if self.path == "/relay/push":
+            self._relay_push_endpoint()
+            return
+        path = urlparse(self.path).path
+        if path.startswith("/session/") and path.endswith("/request-demand"):
+            self._relay_mobile_demand(path)
             return
         if self.path != "/request":
             self._send_json(404, {"error": "NOT FOUND"})
@@ -417,11 +652,81 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._send_json(409, {"error": "EMAIL TAKEN"})
             return
 
-        print(f"ACCOUNT CREATED = {email}", flush=True)
-        self._send_json(201, {
-            "token": auth_issue_token(email),
+        code = _issue_verification_code(email)
+        sent, detail = _send_verification_email(email, code)
+        if not sent:
+            print(f"VERIFY EMAIL FAILED = {email} ; {detail}", flush=True)
+        print(f"ACCOUNT CREATED = {email} | VERIFY_CODE = {code}", flush=True)
+        self._send_json(202, {
+            "verification_required": True,
             "email": email,
             "card_label": auth_card_label(_accounts()[email]),
+            "message": "Code de vérification envoyé par e-mail.",
+            "code": code if os.environ.get("KL_DEBUG_VERIFY_CODE", "0").lower() in {"1", "true", "yes", "on"} else None,
+        })
+
+    def _auth_verify(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "BAD REQUEST"})
+            return
+
+        email = str(payload.get("email", "")).strip().casefold()
+        code = str(payload.get("code", "")).strip()
+        record = _accounts().get(email)
+        if record is None:
+            self._send_json(404, {"error": "EMAIL NOT FOUND"})
+            return
+
+        info = _VERIFICATIONS.get(email)
+        if not info:
+            self._send_json(400, {"error": "NO CODE SENT"})
+            return
+
+        if time.time() > float(info.get("expires_at", 0)):
+            _VERIFICATIONS.pop(email, None)
+            self._send_json(410, {"error": "CODE EXPIRED"})
+            return
+
+        if not hmac.compare_digest(info.get("code_hash", ""), _verification_hash(code)):
+            self._send_json(401, {"error": "INVALID CODE"})
+            return
+
+        record["verified"] = True
+        _VERIFICATIONS.pop(email, None)
+        _save_json(ACCOUNTS_PATH, _accounts())
+        self._send_json(200, {
+            "token": auth_issue_token(email),
+            "email": email,
+            "card_label": auth_card_label(record),
+            "verified": True,
+        })
+
+    def _auth_resend(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "BAD REQUEST"})
+            return
+
+        email = str(payload.get("email", "")).strip().casefold()
+        record = _accounts().get(email)
+        if record is None:
+            self._send_json(404, {"error": "EMAIL NOT FOUND"})
+            return
+
+        code = _issue_verification_code(email)
+        sent, detail = _send_verification_email(email, code)
+        if not sent:
+            print(f"RESEND VERIFY EMAIL FAILED = {email} ; {detail}", flush=True)
+        self._send_json(200, {
+            "verification_required": True,
+            "email": email,
+            "message": "Nouveau code de vérification envoyé.",
+            "code": code if os.environ.get("KL_DEBUG_VERIFY_CODE", "0").lower() in {"1", "true", "yes", "on"} else None,
         })
 
     def _auth_login(self):
@@ -434,11 +739,21 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         email = str(payload.get("email", "")).strip().casefold()
         password = str(payload.get("password", ""))
+        force = bool(payload.get("force"))
         record = auth_verify_credentials(email, password)
         if record is None:
             print(f"LOGIN FAILED = {email}", flush=True)
             self._send_json(401, {"error": "WRONG CREDENTIALS"})
             return
+        if not record.get("verified", False):
+            print(f"LOGIN BLOCKED UNTIL VERIFICATION = {email}", flush=True)
+            self._send_json(403, {"error": "EMAIL NOT VERIFIED"})
+            return
+        if auth_has_active_token(email) and not force:
+            print(f"LOGIN BLOCKED ALREADY CONNECTED = {email}", flush=True)
+            self._send_json(409, {"error": "ALREADY_CONNECTED"})
+            return
+        auth_revoke_tokens_for_email(email)
 
         print(f"LOGIN OK = {email}", flush=True)
         self._send_json(200, {
@@ -453,11 +768,75 @@ class RequestHandler(BaseHTTPRequestHandler):
             auth_revoke_token(header[7:].strip())
         self._send_json(200, {"status": "ok"})
 
+    def _auth_forgot(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "BAD REQUEST"})
+            return
+
+        email = str(payload.get("email", "")).strip().casefold()
+        record = _accounts().get(email)
+        if record is None:
+            # Ne pas reveler si le compte existe : reponse generique.
+            self._send_json(200, {"status": "ok"})
+            return
+
+        code = _issue_verification_code(email)
+        sent, detail = _send_verification_email(email, code)
+        if not sent:
+            print(f"RESET EMAIL FAILED = {email} ; {detail}", flush=True)
+        self._send_json(200, {
+            "status": "ok",
+            "code": code if os.environ.get("KL_DEBUG_VERIFY_CODE", "0").lower() in {"1", "true", "yes", "on"} else None,
+        })
+
+    def _auth_reset(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "BAD REQUEST"})
+            return
+
+        email = str(payload.get("email", "")).strip().casefold()
+        code = str(payload.get("code", "")).strip()
+        new_password = str(payload.get("password", ""))
+        record = _accounts().get(email)
+        if record is None:
+            self._send_json(404, {"error": "EMAIL NOT FOUND"})
+            return
+
+        info = _VERIFICATIONS.get(email)
+        if not info:
+            self._send_json(400, {"error": "NO CODE SENT"})
+            return
+        if time.time() > float(info.get("expires_at", 0)):
+            _VERIFICATIONS.pop(email, None)
+            self._send_json(410, {"error": "CODE EXPIRED"})
+            return
+        if not hmac.compare_digest(info.get("code_hash", ""), _verification_hash(code)):
+            self._send_json(401, {"error": "INVALID CODE"})
+            return
+        if len(new_password) < 8:
+            self._send_json(400, {"error": "WEAK PASSWORD"})
+            return
+
+        auth_set_password(email, new_password)
+        _VERIFICATIONS.pop(email, None)
+        print(f"PASSWORD RESET OK = {email}", flush=True)
+        self._send_json(200, {"status": "ok"})
+
     def _register_session(self):
-        """Enregistre/actualise un nom de session -> URL d'hote (annuaire).
+        """Enregistre/actualise un nom de session (annuaire).
 
         Requiert une session authentifiee : chaque nom rattache a son compte
-        proprietaire, seul compte qui supportera plus tard les frais."""
+        proprietaire, seul compte qui supportera plus tard les frais.
+        Mode relais (par defaut, recommande) : aucun host_url requis, aucun
+        tunnel/port entrant chez le KJ, KaronlineBox tire ses jobs via
+        /relay/pull. Mode legacy (host_url fourni) : conserve pour
+        compatibilite ascendante."""
         owner = self._bearer_email()
         if not owner:
             self._send_json(401, {"error": "AUTH REQUIRED"})
@@ -468,6 +847,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             request = json.loads(body.decode("utf-8"))
             name = str(request.get("name", "")).strip().casefold()
             host_url = str(request.get("host_url", "")).strip().rstrip("/")
+            force = bool(request.get("force"))
         except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
             self._send_json(400, {"error": "INVALID REQUEST"})
             return
@@ -476,16 +856,79 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._send_json(400, {"error": "INVALID SESSION NAME"})
             return
 
-        parsed_host = urlparse(host_url)
-        if parsed_host.scheme != "https" or not parsed_host.hostname:
-            self._send_json(400, {"error": "INVALID HOST URL"})
+        now = time.time()
+        other_name = next((n for n, e in SESSIONS.items()
+                           if e.get("owner") == owner and n != name
+                           and now - e.get("ts", 0) <= SESSION_TTL_SECONDS), None)
+        if other_name and not force:
+            self._send_json(409, {"error": "SESSION_ALREADY_EXISTS", "existing_name": other_name})
+            return
+        if other_name:
+            SESSIONS.pop(other_name, None)
+
+        entry = {"ts": time.time(), "owner": owner, "queue": []}
+        if host_url:
+            parsed_host = urlparse(host_url)
+            if parsed_host.scheme != "https" or not parsed_host.hostname:
+                self._send_json(400, {"error": "INVALID HOST URL"})
+                return
+            entry["host_url"] = host_url
+
+        SESSIONS[name] = entry
+        print(f"SESSION REGISTERED = {name} "
+              f"(owner={owner}, mode={'legacy' if host_url else 'relay'})", flush=True)
+        self._send_json(200, {"status": "ok", "name": name, "owner": owner})
+
+    def _relay_push_endpoint(self):
+        """Endpoint POST /relay/push : KaronlineBox depose le resultat d'un
+        job precedemment tire via /relay/pull."""
+        owner = self._bearer_email()
+        if not owner:
+            self._send_json(401, {"error": "AUTH REQUIRED"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            request = json.loads(self.rfile.read(length).decode("utf-8"))
+            job_id = str(request.get("job_id", "")).strip()
+            status = int(request.get("status", 500))
+            resp_body = request.get("body") or {}
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "INVALID REQUEST"})
             return
 
-        SESSIONS[name] = {"host_url": host_url, "ts": time.time(),
-                          "owner": owner}
-        print(f"SESSION REGISTERED = {name} -> {host_url} "
-              f"(owner={owner})", flush=True)
-        self._send_json(200, {"status": "ok", "name": name, "owner": owner})
+        if not job_id or not _relay_push(job_id, owner, status, resp_body):
+            self._send_json(404, {"error": "JOB NOT FOUND"})
+            return
+        self._send_json(200, {"status": "ok"})
+
+    def _relay_mobile_demand(self, path: str):
+        """Endpoint POST /session/<nom>/request-demand : un invite mobile/PC
+        declenche une demande de chanson, relayee (long-poll) vers
+        KaronlineBox via /relay/pull puis /relay/push."""
+        name = unquote(path[len("/session/"):-len("/request-demand")]).strip().casefold()
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "INVALID REQUEST"})
+            return
+
+        singer = str(payload.get("singer", "")).strip()
+        artist = str(payload.get("artist", "")).strip()
+        title = str(payload.get("title", "")).strip()
+        try:
+            key = int(payload.get("key", 0))
+        except (TypeError, ValueError):
+            self._send_json(400, {"error": "INVALID REQUEST"})
+            return
+        if not singer or not artist or not title or not -12 <= key <= 12:
+            self._send_json(400, {"error": "INVALID REQUEST"})
+            return
+
+        status, body = _relay_run_job(name, "request-demand", {
+            "singer": singer, "artist": artist, "title": title, "key": key,
+        })
+        self._send_json(status, body)
 
     def _relay_demand(self):
         try:

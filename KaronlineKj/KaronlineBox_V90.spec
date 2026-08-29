@@ -39,6 +39,7 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,
+    icon="ui\\kb_logo_luxury.ico",
 )
 
 coll = COLLECT(

@@ -17,6 +17,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=C:\Temp\KaronlineBox_Setup
 OutputBaseFilename=KaronlineBox_V90_Setup
+SetupIconFile=ui\kb_logo_luxury.ico
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -30,6 +31,8 @@ Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDesc
 
 [Files]
 Source: "{#MySourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; cloudflared.exe n'est plus necessaire : KaronlineBox utilise desormais le
+; relais central (connexion sortante uniquement, aucun tunnel/port entrant).
 ; Bundle GStreamer allege (quelques dizaines de Mo, uniquement les plugins
 ; utilises par KaronlineBox) genere par tools\build_gstreamer_bundle.ps1.
 ; Optionnel : si redist\gstreamer_runtime est absent, l'installeur proposera

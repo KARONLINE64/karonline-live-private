@@ -84,6 +84,7 @@ def main():
         (lib_dir / name).write_bytes(b"")
 
     env = dict(os.environ, KL_DATA_DIR=data_dir,
+               KL_DEBUG_VERIFY_CODE="1",
                PYTHONIOENCODING="utf-8")
     server = subprocess.Popen(
         [sys.executable, str(HERE / "lan_server.py"),
@@ -100,8 +101,22 @@ def main():
         status, payload = call("/auth/register", {
             "email": EMAIL, "password": PASSWORD,
             "card_brand": "Visa", "card_last4": "4242"})
+        code = payload.get("code")
+        check("register → envoi code + verification required",
+              status == 202 and payload.get("verification_required") is True and
+              isinstance(code, str) and len(code) == 6,
+              payload)
+
+        status, payload = call("/auth/login",
+                               {"email": EMAIL, "password": PASSWORD})
+        check("login avant vérification → 403", status == 403,
+              payload.get("error"))
+
+        status, payload = call("/auth/verify", {
+            "email": EMAIL, "code": code})
         token = payload.get("token", "")
-        check("register → 201 + jeton", status == 201 and token, status)
+        check("verification OK → jeton reçu", status == 200 and token,
+              payload)
 
         status, payload = call("/auth/register", {
             "email": EMAIL.lower(), "password": "xxxxxxxxx"})

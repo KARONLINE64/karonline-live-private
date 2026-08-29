@@ -24,6 +24,10 @@ USER_MESSAGES = {
     "INVALID EMAIL": "Adresse mail invalide.",
     "WEAK PASSWORD": "Mot de passe trop court (8 caractères minimum).",
     "WRONG CREDENTIALS": "Courriel ou mot de passe incorrect.",
+    "EMAIL NOT VERIFIED": "Veuillez valider votre adresse e-mail avant de vous connecter.",
+    "INVALID CODE": "Code de vérification invalide.",
+    "CODE EXPIRED": "Le code de vérification a expiré. Demandez un nouveau code.",
+    "NO CODE SENT": "Aucun code de vérification n'a été demandé pour cet e-mail.",
     "TOKEN INVALID": "Session expirée, reconnectez-vous.",
     "CARD INVALID": "Numéro de carte invalide.",
     "BAD REQUEST": "Requête incomplète.",
@@ -60,7 +64,7 @@ def request_json(path: str, payload: dict | None = None,
                  token: str | None = None, timeout: int = 8) -> dict:
     """Appel JSON vers l'API centrale ; lève AuthError sur échec applicatif."""
     body = None
-    headers = {"Accept": "application/json"}
+    headers = {"Accept": "application/json", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0"}
     if payload is not None:
         body = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
@@ -118,6 +122,8 @@ def api_register(email: str, password: str, card: str = "") -> dict:
         "token": data.get("token", ""),
         "email": data.get("email", clean),
         "card_label": data.get("card_label") or (f"{brand} ••••{last4}" if last4 else ""),
+        "verification_required": bool(data.get("verification_required")),
+        "code": data.get("code"),
     }
 
 
@@ -180,8 +186,11 @@ class CentralAuthClient:
     # --- opérations réseau : à appeler hors thread UI --------------------
     def register(self, email: str, password: str, card: str = "") -> dict:
         result = api_register(email, password, card)
-        self.save_session(result["token"], result["email"],
-                          result.get("card_label", ""))
+        if result.get("token"):
+            self.save_session(result["token"], result["email"],
+                              result.get("card_label", ""))
+        else:
+            self.clear()
         return result
 
     def login(self, email: str, password: str) -> dict:

@@ -63,10 +63,7 @@ class AuthDialog(QDialog):
         layout.addWidget(self.feedback)
 
         buttons = QHBoxLayout()
-        self.toggle_btn = QPushButton("Créer un compte")
-        self.toggle_btn.setCursor(Qt.PointingHandCursor)
-        self.toggle_btn.clicked.connect(self.toggle_mode)
-        self.cancel_btn = QPushButton("Plus tard")
+        self.cancel_btn = QPushButton("Annuler")
         self.cancel_btn.clicked.connect(self.reject)
         self.submit_btn = QPushButton("Se connecter")
         self.submit_btn.setDefault(True)
@@ -76,7 +73,6 @@ class AuthDialog(QDialog):
             "color:#fff;font-weight:600;"
         )
         self.submit_btn.clicked.connect(self.submit)
-        buttons.addWidget(self.toggle_btn)
         buttons.addStretch(1)
         buttons.addWidget(self.cancel_btn)
         buttons.addWidget(self.submit_btn)
@@ -127,9 +123,6 @@ class AuthDialog(QDialog):
         self.submit_btn.setText(
             "Créer mon compte" if register else "Se connecter"
         )
-        self.toggle_btn.setText(
-            "← Retour à la connexion" if register else "Créer un compte"
-        )
         self.setWindowTitle(
             "S'enregistrer — KaronlineLive" if register
             else "Connexion — KaronlineLive"
@@ -176,7 +169,6 @@ class AuthDialog(QDialog):
 
     def _set_busy(self, busy: bool) -> None:
         self.submit_btn.setEnabled(not busy)
-        self.toggle_btn.setEnabled(not busy)
 
     def _work(self, register: bool, email: str,
               password: str, card: str) -> None:
