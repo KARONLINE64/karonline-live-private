@@ -437,6 +437,18 @@ class RequestHandler(BaseHTTPRequestHandler):
             })
             return
 
+        # Endpoint: GET /auth/session-pair-status - le jeton desktop appelant
+        # est valide ; indique en plus si une session "site" (navigateur) est
+        # aussi active pour ce meme compte (paire requise pour demarrer une
+        # session KaronlineBox).
+        if path == "/auth/session-pair-status":
+            email = self._bearer_email()
+            if not email or email not in _accounts():
+                self._send_json(401, {"error": "TOKEN INVALID"})
+                return
+            self._send_json(200, {"site_active": auth_has_active_token(email, "site")})
+            return
+
         # Endpoint: GET /session/<nom> - resoudre un nom de session (legacy :
         # renvoie host_url si l'hote expose un tunnel ; sinon mode relais).
         # Endpoint: GET /session/<nom>/catalogue - relais long-polling du

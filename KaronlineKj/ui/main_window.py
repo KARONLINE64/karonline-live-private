@@ -1152,8 +1152,6 @@ class MainWindow(QMainWindow):
         )
         self.clear_queue_button.clicked.connect(self.confirm_clear_queue)
 
-        self.queue_add_btn = QPushButton("＋ AJOUTER UNE VIDÉO")
-        self.queue_remote_btn = QPushButton("☁ CATALOGUE DISTANT")
         self.queue_remove_btn = QPushButton("SUPPRIMER")
         self.add_favorite_button = QPushButton("AJOUTER AUX FAVORIS")
         self.add_favorite_button.clicked.connect(self.add_selected_to_favorites)
@@ -1162,14 +1160,12 @@ class MainWindow(QMainWindow):
         self.queue_play_btn = QPushButton("▶ LIRE MAINTENANT")
 
         for _act_btn in (
-            self.queue_add_btn, self.queue_remote_btn, self.queue_remove_btn,
+            self.queue_remove_btn,
             self.add_favorite_button, self.queue_up_btn,
             self.queue_down_btn, self.queue_play_btn,
         ):
             _act_btn.setStyleSheet("font-size:11px;padding:4px 6px;")
 
-        acts.addWidget(self.queue_add_btn)
-        acts.addWidget(self.queue_remote_btn)
         acts.addWidget(self.clear_queue_button)
         acts.addWidget(self.queue_remove_btn)
         acts.addWidget(self.add_favorite_button)
@@ -1177,8 +1173,6 @@ class MainWindow(QMainWindow):
         acts.addWidget(self.queue_down_btn)
         acts.addWidget(self.queue_play_btn)
 
-        self.queue_add_btn.clicked.connect(self.add_selected_video_to_queue)
-        self.queue_remote_btn.clicked.connect(self.add_remote_video_to_queue)
         self.queue_remove_btn.clicked.connect(self.remove_selected_queue_item)
         self.queue_up_btn.clicked.connect(lambda: self.move_selected_queue_item(-1))
         self.queue_down_btn.clicked.connect(lambda: self.move_selected_queue_item(1))
@@ -1535,10 +1529,14 @@ class MainWindow(QMainWindow):
             self.back_btn, self.play_btn, self.stop_btn,
             self.replay_btn, self.forward_btn
         ]:
-            b.setMinimumHeight(64)
-            b.setMinimumWidth(90)
+            # Largeur flexible (pas de min-width fixe) : les 5 boutons se
+            # partagent toujours toute la largeur du panneau video, quelle
+            # que soit la taille GRANDE/MOYENNE/PETITE choisie par le KJ.
+            b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            b.setMinimumHeight(48)
+            b.setMaximumHeight(64)
             b.setStyleSheet(
-                "font-size:24px;font-weight:700;"
+                "font-size:20px;font-weight:700;"
             )
             ctl.addWidget(b)
 
@@ -1579,12 +1577,13 @@ class MainWindow(QMainWindow):
             self.elapsed_label, self.total_label, self.remaining_label
         ]:
             lab.setAlignment(Qt.AlignCenter)
-            lab.setMinimumHeight(38)
-            lab.setMaximumHeight(42)
+            lab.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            lab.setMinimumHeight(34)
+            lab.setMaximumHeight(40)
             lab.setStyleSheet(
-                "color:#ff8a00;font-size:22px;font-weight:700;"
+                "color:#ff8a00;font-size:16px;font-weight:700;"
                 "background:#080d12;border:1px solid #1d2a35;"
-                "border-radius:5px;padding:2px 8px;"
+                "border-radius:5px;padding:2px 4px;"
             )
 
         time_row.addWidget(self.elapsed_label, 1)
@@ -2249,11 +2248,72 @@ class MainWindow(QMainWindow):
                 request["singer"],
                 request["artist"],
                 request["title"],
-                f'{request["key"]:+d}',
             ]):
                 self.requests_table.setItem(
                     row, col, QTableWidgetItem(str(value))
                 )
+
+            key_widget = QWidget()
+            key_layout = QHBoxLayout(key_widget)
+            key_layout.setContentsMargins(2, 0, 2, 0)
+            key_layout.setSpacing(2)
+
+            key_minus = QPushButton("−")
+            key_value = QLabel(f'{request["key"]:+d}')
+            key_plus = QPushButton("+")
+
+            key_value.setAlignment(Qt.AlignCenter)
+            key_value.setMinimumWidth(28)
+
+            key_button_style = (
+                "QPushButton{"
+                "background:#08131c;"
+                "color:#00ffff;"
+                "border:1px solid #1b6f91;"
+                "border-radius:3px;"
+                "font-size:14px;"
+                "font-weight:700;"
+                "padding:0px;"
+                "min-width:22px;"
+                "max-width:22px;"
+                "min-height:22px;"
+                "max-height:22px;"
+                "}"
+                "QPushButton:hover{"
+                "background:#123544;"
+                "}"
+            )
+            key_minus.setStyleSheet(key_button_style)
+            key_plus.setStyleSheet(key_button_style)
+            key_value.setStyleSheet(
+                "QLabel{"
+                "color:#00ffff;"
+                "font-size:15px;"
+                "font-weight:700;"
+                "padding:0px 3px;"
+                "}"
+            )
+
+            def make_request_key_callback(target_request, value_label, delta):
+                def callback(checked=False):
+                    new_value = max(
+                        -6, min(6, int(target_request["key"]) + delta)
+                    )
+                    target_request["key"] = new_value
+                    value_label.setText(f"{new_value:+d}")
+                return callback
+
+            key_minus.clicked.connect(
+                make_request_key_callback(request, key_value, -1)
+            )
+            key_plus.clicked.connect(
+                make_request_key_callback(request, key_value, +1)
+            )
+
+            key_layout.addWidget(key_minus)
+            key_layout.addWidget(key_value)
+            key_layout.addWidget(key_plus)
+            self.requests_table.setCellWidget(row, 3, key_widget)
 
             actions = QWidget()
             action_layout = QHBoxLayout(actions)
@@ -2316,6 +2376,19 @@ class MainWindow(QMainWindow):
                 False,
             )
             return
+
+        if not self._site_session_active():
+            QMessageBox.warning(
+                self, "CONNEXION SITE REQUISE",
+                "Connectez-vous aussi sur karonlinelive.com avec le même"
+                " compte (même e-mail/mot de passe) avant de démarrer une"
+                " session KaronlineBox."
+            )
+            self.set_status(
+                "● Connexion simultanée site + KaronlineBox requise", False
+            )
+            return
+
         name = re.sub(
             r"[^a-z0-9_-]", "-",
             self.session_name_input.text().strip().lower()
@@ -2414,6 +2487,24 @@ class MainWindow(QMainWindow):
             return False, str(exc)
         threading.Thread(target=server.serve_forever, daemon=True).start()
         return True, ""
+
+    def _site_session_active(self):
+        """True si une session karonlinelive.com (navigateur) est active
+        pour ce meme compte, en plus de la connexion KaronlineBox."""
+        request = urllib.request.Request(
+            "https://api.karonlinelive.com/auth/session-pair-status",
+            headers={
+                **self.central_auth.authorization_header(),
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0",
+            },
+            method="GET",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=8) as response:
+                data = json.loads(response.read().decode("utf-8"))
+            return bool(data.get("site_active"))
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+            return False
 
     def _register_relay_session(self, name, force=False):
         """Enregistre le nom de session aupres du relais central. Renvoie
@@ -2930,77 +3021,6 @@ class MainWindow(QMainWindow):
         self.queue.current = song
         self.queue.emit_all()
         self.play_song_object(song)
-
-    def add_selected_video_to_queue(self):
-        start_dir = str(self.media_dir) if self.media_dir.is_dir() else str(
-            Path(__file__).resolve().parent.parent
-        )
-
-        filename, _ = QFileDialog.getOpenFileName(
-            self,
-            "Ajouter une vidéo à la file d'attente",
-            start_dir,
-            "Vidéos MP4 (*.mp4);;Toutes les vidéos (*.mp4 *.mkv *.avi *.mov);;Tous les fichiers (*.*)",
-        )
-        if not filename:
-            return
-
-        path = Path(filename)
-        if path.suffix.lower() != ".mp4":
-            self.set_status("● Sélectionne un fichier MP4", False)
-            return
-
-        # A raw MP4 has no singer/artist/title metadata in Karonline yet.
-        # Keep those fields empty instead of inventing fake metadata.
-        song = Song("", "", path.stem, 0)
-        self.song_files[id(song)] = str(path)
-        new_queue_index = len(self.queue.items)
-        self.queue.add(song)
-        self.refresh_queue()
-        self._select_queue_index(new_queue_index)
-        self.set_status(f"● Ajouté à la file : {path.name}")
-
-    def add_remote_video_to_queue(self):
-        """Ajoute a la file un titre de la bibliotheque partagee du PC fixe,
-        telecharge a la demande (phase de test amis/famille)."""
-        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        try:
-            songs = self._fetch_central_catalogue()
-        finally:
-            QApplication.restoreOverrideCursor()
-        if not songs:
-            self.set_status("● Bibliothèque distante indisponible", False)
-            return
-
-        labels = [f"{s.get('artist', '')} - {s.get('title', '')}" for s in songs]
-        label, ok = QInputDialog.getItem(
-            self, "CATALOGUE DISTANT (PC fixe)",
-            "Choisir un titre :", labels, 0, True,
-        )
-        if not ok or not label:
-            return
-        filename = str(songs[labels.index(label)].get("filename", "")).strip()
-        if not filename:
-            return
-
-        self.set_status(f"● Téléchargement de « {label} »...", True)
-        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        try:
-            local_path = self._download_from_central_library(filename)
-        finally:
-            QApplication.restoreOverrideCursor()
-        if not local_path:
-            self.set_status(f"● Échec du téléchargement : « {label} »", False)
-            return
-
-        path = Path(local_path)
-        song = Song("", "", path.stem, 0)
-        self.song_files[id(song)] = str(path)
-        new_queue_index = len(self.queue.items)
-        self.queue.add(song)
-        self.refresh_queue()
-        self._select_queue_index(new_queue_index)
-        self.set_status(f"● Ajouté à la file (distant) : {path.name}", True)
 
     def _selected_queue_index(self):
         row = self.queue_list.currentRow()
