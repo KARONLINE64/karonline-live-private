@@ -499,6 +499,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 songs.append({
                     "artist": artist.strip() if separator else "Artiste inconnu",
                     "title": title.strip() if separator else artist.strip(),
+                    "filename": file_path.name,
                 })
             songs.sort(key=lambda song: (song["artist"].casefold(), song["title"].casefold()))
             self._send_json(200, songs)
