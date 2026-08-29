@@ -2322,10 +2322,11 @@ class MainWindow(QMainWindow):
         self.session_status_label.setText("● Démarrage du serveur local...")
 
         if not self._is_port_open("127.0.0.1", 8765):
-            if not self._start_local_catalogue_server():
+            ok, catalogue_error = self._start_local_catalogue_server()
+            if not ok:
                 self.session_start_btn.setEnabled(True)
                 self.session_status_label.setText(
-                    "● Impossible de démarrer le serveur catalogue local."
+                    f"● Impossible de démarrer le serveur catalogue local : {catalogue_error}"
                 )
                 return
 
@@ -2380,23 +2381,29 @@ class MainWindow(QMainWindow):
         """Démarre le serveur catalogue local (port 8765) dans un thread du
         process courant : un subprocess `sys.executable lan_server.py` ne
         fonctionne pas dans un exe PyInstaller gelé (sys.executable est
-        l'exe lui-même, pas un interpréteur python)."""
+        l'exe lui-même, pas un interpréteur python).
+        Renvoie (True, "") si ok, sinon (False, "message d'erreur")."""
         media_dir = Path(__file__).resolve().parent.parent / "media"
         try:
             media_dir.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
             print(f"LOCAL CATALOGUE SERVER ERROR = {exc}", flush=True)
-            return False
+            return False, str(exc)
         try:
             import lan_server
-            server = lan_server.ThreadingHTTPServer(("0.0.0.0", 8765), lan_server.RequestHandler)
+            # 127.0.0.1 uniquement : le relais central appelle ce serveur en
+            # boucle locale (127.0.0.1:8765), aucune exposition LAN requise.
+            # Se lier sur 0.0.0.0 declenche parfois une invite pare-feu
+            # Windows (ou un blocage silencieux par un antivirus/EDR) sur
+            # des machines clientes, ce que 127.0.0.1 evite completement.
+            server = lan_server.ThreadingHTTPServer(("127.0.0.1", 8765), lan_server.RequestHandler)
             server.library = media_dir
             server.request_port = 8766
-        except OSError as exc:
+        except Exception as exc:  # noqa: BLE001 - on veut voir toute cause possible
             print(f"LOCAL CATALOGUE SERVER ERROR = {exc}", flush=True)
-            return False
+            return False, str(exc)
         threading.Thread(target=server.serve_forever, daemon=True).start()
-        return True
+        return True, ""
 
     def _register_relay_session(self, name, force=False):
         """Enregistre le nom de session aupres du relais central. Renvoie
