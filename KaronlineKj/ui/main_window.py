@@ -63,8 +63,12 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("KaronlineBox")
-        self.resize(1500, 900)
-        self.setMinimumSize(1500, 900)
+        # Taille minimale reduite (etait 1500x900) : sur un ecran/portable
+        # plus petit que 900px de haut (ex. 1366x768), forcer 900 poussait
+        # Windows a violer la contrainte et provoquait un rendu deforme /
+        # dedouble de la barre du bas (CHANGEUR DE TONALITE, etc.).
+        self.resize(1400, 780)
+        self.setMinimumSize(1280, 720)
 
         self.queue = QueueManager()
 
@@ -1492,7 +1496,7 @@ class MainWindow(QMainWindow):
         vl.addWidget(lab)
 
         self.video = QWidget()
-        self.video.setMinimumHeight(320)
+        self.video.setMinimumHeight(240)
         self.video.setAttribute(Qt.WA_NativeWindow, True)
         self.video.setStyleSheet(
             "background:#020305;border:1px solid #16222c;"
