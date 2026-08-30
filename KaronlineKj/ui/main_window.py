@@ -2602,27 +2602,54 @@ class MainWindow(QMainWindow):
             status, body = 500, {"error": "UNKNOWN JOB TYPE"}
             try:
                 if job_type == "catalogue":
-                    with urllib.request.urlopen(
-                        "http://127.0.0.1:8765/catalogue", timeout=5
-                    ) as local_response:
-                        status = local_response.status
-                        body = json.loads(local_response.read().decode("utf-8"))
-                    # Phase de test amis/famille : si ce poste n'a pas encore
-                    # sa propre bibliotheque locale, on affiche celle partagee
-                    # sur le PC fixe (annuaire central) au lieu d'un catalogue
-                    # vide.
-                    if status == 200 and not body:
-                        try:
-                            central_request = urllib.request.Request(
-                                "https://api.karonlinelive.com/catalogue",
-                                headers={"User-Agent": user_agent},
-                                method="GET",
+                    local_songs = []
+                    try:
+                        with urllib.request.urlopen(
+                            "http://127.0.0.1:8765/catalogue", timeout=5
+                        ) as local_response:
+                            status = local_response.status
+                            local_songs = json.loads(
+                                local_response.read().decode("utf-8")
                             )
-                            with urllib.request.urlopen(central_request, timeout=8) as central_response:
-                                status = central_response.status
-                                body = json.loads(central_response.read().decode("utf-8"))
-                        except (urllib.error.URLError, TimeoutError, OSError, ValueError):
-                            pass
+                    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+                        status = 200
+                        local_songs = []
+
+                    # Phase de test amis/famille : la bibliotheque locale de
+                    # ce poste peut n'etre qu'un cache partiel (fichiers deja
+                    # telecharges a la demande). On fusionne TOUJOURS avec la
+                    # bibliotheque partagee du PC fixe pour ne jamais montrer
+                    # un catalogue tronque au seul dernier titre telecharge.
+                    local_names = {
+                        str(song.get("filename", "")).strip().casefold()
+                        for song in local_songs
+                        if song.get("filename")
+                    }
+                    merged = list(local_songs)
+                    try:
+                        central_request = urllib.request.Request(
+                            "https://api.karonlinelive.com/catalogue",
+                            headers={"User-Agent": user_agent},
+                            method="GET",
+                        )
+                        with urllib.request.urlopen(central_request, timeout=8) as central_response:
+                            central_songs = json.loads(
+                                central_response.read().decode("utf-8")
+                            )
+                        for song in central_songs:
+                            filename = str(song.get("filename", "")).strip()
+                            if filename and filename.casefold() not in local_names:
+                                merged.append(song)
+                    except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+                        pass
+
+                    merged.sort(
+                        key=lambda song: (
+                            str(song.get("artist", "")).casefold(),
+                            str(song.get("title", "")).casefold(),
+                        )
+                    )
+                    status, body = 200, merged
                 elif job_type == "request-demand":
                     demand_payload = dict(payload)
                     demand_payload["client_ip"] = "127.0.0.1"
@@ -3863,10 +3890,11 @@ class MainWindow(QMainWindow):
 
         screens = QGuiApplication.screens()
         if len(screens) >= 2:
-            self.public_window.setGeometry(
-                screens[1].availableGeometry()
-            )
-            self.public_window.showFullScreen()
+            # Fenetre normale (bordee, deplacable), positionnee sur l'ecran
+            # externe : jamais de plein ecran automatique ici, sinon
+            # impossible de la glisser/repositionner soi-meme.
+            self.public_window.setGeometry(screens[1].availableGeometry())
+            self.public_window.show()
         else:
             self.public_window.resize(960, 540)
             self.public_window.show()
