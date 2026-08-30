@@ -25,6 +25,7 @@ const hostForm = document.querySelector('#host-connect-form');
 const hostInput = document.querySelector('#host-url-input');
 const hostStatuses = document.querySelectorAll('.host-status');
 const hostChangeButtons = document.querySelectorAll('[data-change-host]');
+const hostDisconnectButtons = document.querySelectorAll('[data-disconnect-host]');
 let songs = [];
 let isSubmitting = false;
 let isDownloading = false;
@@ -43,6 +44,23 @@ function refreshHostStatus() {
       el.textContent = 'Non connecté à un hôte';
     }
   });
+}
+
+function disconnectFromHost() {
+  clearHostServerUrl();
+  isMobileParticipant = false;
+  songs = [];
+  refreshHostStatus();
+  catalogueDialog?.close();
+  hostDialog?.showModal();
+}
+
+function clearClosedRelaySession() {
+  if (!getRelaySessionName()) return;
+  clearHostServerUrl();
+  isMobileParticipant = false;
+  songs = [];
+  refreshHostStatus();
 }
 
 // Renvoie true si un hote est deja configure, sinon ouvre le dialog de connexion et renvoie false
@@ -101,6 +119,10 @@ hostChangeButtons.forEach((button) => button.addEventListener('click', () => {
   hostDialog?.showModal();
 }));
 
+hostDisconnectButtons.forEach((button) => button.addEventListener('click', () => {
+  disconnectFromHost();
+}));
+
 refreshHostStatus();
 
 // Desktop: catalogue requiert SEULEMENT l'authentification KJ (pas de nom de session hôte)
@@ -115,12 +137,18 @@ if (catalogueTriggerDesktop) {
   });
 }
 
-// Mobile: "Participer" demande TOUJOURS le nom de session KJ/hôte, à chaque
-// clic, jamais d'email/password. Aucun raccourci meme si deja connecte avant.
+// Mobile: le nom de session est conserve dans le navigateur jusqu'a la
+// deconnexion volontaire de l'invite ou l'arret de la session KaronlineBox.
 const catalogueTriggerMobile = document.querySelector('#catalogue-trigger-mobile');
 if (catalogueTriggerMobile) {
   catalogueTriggerMobile.addEventListener('click', () => {
     isMobileParticipant = true;
+    if (isHostConnected()) {
+      catalogueDialog?.showModal();
+      search?.focus();
+      loadCatalogue();
+      return;
+    }
     hostDialog?.showModal();
   });
 }
@@ -197,10 +225,19 @@ async function loadCatalogue() {
   try {
     const isAvailable = await checkLanServerAvailability();
     if (!isAvailable) {
-      songsContainer.innerHTML = '<p class="empty-state">⚠️ Serveur indisponible. Vérifiez que KaronlineBox et le tunnel de votre hôte sont actifs.</p>';
+      if (!isHostConnected()) {
+        songsContainer.innerHTML = '<p class="empty-state">⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.</p>';
+      } else {
+        songsContainer.innerHTML = '<p class="empty-state">⚠️ Serveur indisponible. Vérifiez que KaronlineBox et le tunnel de votre hôte sont actifs.</p>';
+      }
       return;
     }
     const response = await fetch(getCatalogueUrl());
+    if (response.status === 404 && getRelaySessionName()) {
+      clearClosedRelaySession();
+      songsContainer.innerHTML = '<p class="empty-state">⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.</p>';
+      return;
+    }
     if (!response.ok) throw new Error('Catalogue indisponible');
     songs = await response.json();
     renderSongs(songs);
@@ -295,6 +332,12 @@ requestForm?.addEventListener('submit', async (event) => {
         submitButton.disabled = false;
         isSubmitting = false;
       }, 2000);
+    } else if (response.status === 404 && getRelaySessionName()) {
+      clearClosedRelaySession();
+      output.textContent = '⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.';
+      output.classList.add('is-visible');
+      submitButton.disabled = false;
+      isSubmitting = false;
     } else if (response.status === 409) {
       output.textContent = '❌ KaronlineBox non actif. Lancez l\'application d\'abord.';
       output.classList.add('is-visible');
@@ -329,7 +372,10 @@ function escapeHtml(value) {
 // la page : le catalogue ne se charge que sur clic explicite (desktop
 // "Catalogue" ou mobile "Participer"), jamais automatiquement.
 if (!catalogueDialog && songsContainer) {
-  if (!isMobileParticipant && !localStorage.getItem('kl_auth_token')) {
+  if (getRelaySessionName()) {
+    isMobileParticipant = true;
+    loadCatalogue();
+  } else if (!localStorage.getItem('kl_auth_token')) {
     document.querySelector('#login-dialog')?.showModal();
   } else if (!isHostConnected()) {
     hostDialog?.showModal();

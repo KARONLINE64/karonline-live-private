@@ -586,6 +586,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         if self.path == "/session/register":
             self._register_session()
             return
+        if self.path == "/session/unregister":
+            self._unregister_session()
+            return
         if self.path == "/request-demand":
             self._relay_demand()
             return
@@ -903,6 +906,27 @@ class RequestHandler(BaseHTTPRequestHandler):
         print(f"SESSION REGISTERED = {name} "
               f"(owner={owner}, mode={'legacy' if host_url else 'relay'})", flush=True)
         self._send_json(200, {"status": "ok", "name": name, "owner": owner})
+
+    def _unregister_session(self):
+        owner = self._bearer_email()
+        if not owner:
+            self._send_json(401, {"error": "AUTH REQUIRED"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            request = json.loads(self.rfile.read(length).decode("utf-8"))
+            name = str(request.get("name", "")).strip().casefold()
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "INVALID REQUEST"})
+            return
+
+        entry = SESSIONS.get(name)
+        if entry is None or entry.get("owner") != owner:
+            self._send_json(404, {"error": "SESSION NOT FOUND"})
+            return
+
+        SESSIONS.pop(name, None)
+        self._send_json(200, {"status": "ok"})
 
     def _relay_push_endpoint(self):
         """Endpoint POST /relay/push : KaronlineBox depose le resultat d'un

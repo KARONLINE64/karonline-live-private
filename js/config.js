@@ -120,6 +120,9 @@ async function checkLanServerAvailability() {
           setTimeout(() => reject(new Error('LAN timeout')), CONFIG.LAN_TIMEOUT)
         )
       ]);
+      if (response.status === 404) {
+        clearHostServerUrl();
+      }
       return response.ok;
     } catch {
       return false;

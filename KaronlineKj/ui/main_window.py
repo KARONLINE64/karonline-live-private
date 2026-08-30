@@ -83,6 +83,7 @@ class MainWindow(QMainWindow):
         # Compte KJ (API centrale) : jeton persistant ; favoris/réglages locaux.
         self.central_auth = CentralAuthClient(self.settings)
         self._central_session_ok = False
+        self._active_relay_session = None
 
         # V45 — actual RÉGLAGES runtime state.
         self.public_bg_files = []
@@ -2470,6 +2471,7 @@ class MainWindow(QMainWindow):
                 return
 
         self._relay_stop = False
+        self._active_relay_session = name
         self._relay_thread = threading.Thread(
             target=self._relay_loop, args=(name,), daemon=True
         )
@@ -2570,6 +2572,27 @@ class MainWindow(QMainWindow):
             return False, body
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             return False, {"error": str(exc)}
+
+    def _unregister_relay_session(self):
+        name = getattr(self, "_active_relay_session", None)
+        if not name:
+            return
+        self._relay_stop = True
+        request = urllib.request.Request(
+            "https://api.karonlinelive.com/session/unregister",
+            data=json.dumps({"name": name}).encode("utf-8"),
+            headers={
+                **self.central_auth.authorization_header(),
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0",
+            },
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(request, timeout=5).close()
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, OSError):
+            pass
+        self._active_relay_session = None
 
     def _relay_loop(self, name):
         """Boucle de fond : long-poll sortant vers le relais central, puis
@@ -3936,6 +3959,7 @@ class MainWindow(QMainWindow):
         if getattr(self, "_shutting_down", False):
             return
         self._shutting_down = True
+        self._unregister_relay_session()
 
         if getattr(self, "lan_request_receiver", None) is not None:
             self.lan_request_receiver.stop()
