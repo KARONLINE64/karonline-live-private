@@ -325,13 +325,11 @@ requestForm?.addEventListener('submit', async (event) => {
     });
     
     if (response.ok) {
-      output.textContent = 'Demande reçue ! Merci, vous êtes enregistré.';
-      output.classList.add('is-visible');
-      // Permettre à l'utilisateur de fermer le popup après succès
-      setTimeout(() => {
-        submitButton.disabled = false;
-        isSubmitting = false;
-      }, 2000);
+      dialog?.close();
+      catalogueDialog?.showModal();
+      search?.focus();
+      submitButton.disabled = false;
+      isSubmitting = false;
     } else if (response.status === 404 && getRelaySessionName()) {
       clearClosedRelaySession();
       output.textContent = '⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.';
