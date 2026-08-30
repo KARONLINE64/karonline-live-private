@@ -1598,6 +1598,24 @@ class MainWindow(QMainWindow):
 
         bottom = QHBoxLayout()
 
+        logo_widget = QWidget()
+        logo_layout = QVBoxLayout(logo_widget)
+        logo_layout.setContentsMargins(8, 4, 8, 4)
+        logo_layout.setSpacing(2)
+        brand_label = QLabel(
+            '🎤 <span style="color:#f4f7fb;">Karonline</span>'
+            '<span style="color:#145cff;">Live</span>'
+        )
+        brand_label.setStyleSheet("font-size:22px;font-weight:700;")
+        tagline_label = QLabel("LE SITE DE KARAOKÉ &amp; ANIMATION")
+        tagline_label.setStyleSheet(
+            "color:#ff2e63;font-size:11px;font-weight:700;"
+        )
+        logo_layout.addWidget(brand_label)
+        logo_layout.addWidget(tagline_label)
+        logo_layout.addStretch()
+        bottom.addWidget(logo_widget, 1)
+
         kb = QGroupBox("CHANGEUR DE TONALITÉ")
         kl = QHBoxLayout(kb)
         self.key_buttons = {}
