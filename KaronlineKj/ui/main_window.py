@@ -25,12 +25,9 @@ from core.gstreamer_player import GStreamerPlayer, GStreamerError
 from core.models import Song
 from core.queue_manager import QueueManager
 from core.favorites_manager import FavoritesManager
-from core.media_provider import LanMediaProvider
 from core.lan_config import (
-    LAN_MEDIA_PORT,
     LAN_RECEIVER_HOST,
     LAN_REQUEST_PORT,
-    LAN_TEST_SERVER,
 )
 from core.lan_request_receiver import LanRequestReceiver
 from core.central_auth import CentralAuthClient
@@ -1854,13 +1851,23 @@ class MainWindow(QMainWindow):
         )
 
 
+    def _confirm_oui_non(self, title, text):
+        """QMessageBox.question avec des boutons Oui/Non (au lieu de Yes/No,
+        qui s'affichent en anglais quand la traduction Qt n'est pas chargee)."""
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Question)
+        box.setWindowTitle(title)
+        box.setText(text)
+        yes_btn = box.addButton("Oui", QMessageBox.YesRole)
+        box.addButton("Non", QMessageBox.NoRole)
+        box.exec()
+        return box.clickedButton() is yes_btn
+
     def clear_my_favorites(self):
-        reply = QMessageBox.question(
-            self, "VIDER MES FAVORIS",
+        if not self._confirm_oui_non(
+            "VIDER MES FAVORIS",
             "Supprimer tous vos favoris personnels (onglet MOI) ?",
-            QMessageBox.Yes | QMessageBox.No,
-        )
-        if reply != QMessageBox.Yes:
+        ):
             return
         self.favorites.clear_solo()
         self.refresh_favorites()
@@ -1868,12 +1875,10 @@ class MainWindow(QMainWindow):
         self.set_status("● Mes favoris effacés", True)
 
     def clear_group_favorites(self):
-        reply = QMessageBox.question(
-            self, "VIDER LES FAVORIS DU GROUPE",
+        if not self._confirm_oui_non(
+            "VIDER LES FAVORIS DU GROUPE",
             "Supprimer tous les favoris du groupe (onglet GROUPE) ?",
-            QMessageBox.Yes | QMessageBox.No,
-        )
-        if reply != QMessageBox.Yes:
+        ):
             return
         self.favorites.clear_group()
         self.refresh_favorites()
@@ -2183,6 +2188,15 @@ class MainWindow(QMainWindow):
             self.queue_area_stack.setCurrentIndex(3)
             self._update_manual_break_enabled()
 
+        # Force un re-layout + repaint immediats : masquer/afficher live_box
+        # et next_box laissait parfois un residu visuel (ancien contenu non
+        # efface) tant que la fenetre n'etait pas redimensionnee/rafraichie.
+        central = self.centralWidget()
+        if central is not None and central.layout() is not None:
+            central.layout().invalidate()
+            central.layout().activate()
+        self.update()
+
         self.update_demands_indicator()
 
     def _blink_demands(self):
@@ -2419,13 +2433,12 @@ class MainWindow(QMainWindow):
             error_code = (error_info or {}).get("error", "")
             if error_code == "SESSION_ALREADY_EXISTS":
                 existing_name = (error_info or {}).get("existing_name", "")
-                reply = QMessageBox.question(
-                    self, "SESSION DÉJÀ EXISTANTE",
+                confirmed = self._confirm_oui_non(
+                    "SESSION DÉJÀ EXISTANTE",
                     f"Une session (« {existing_name} ») est déjà active ailleurs"
                     f" avec ce compte. La remplacer par « {name} » ?",
-                    QMessageBox.Yes | QMessageBox.No,
                 )
-                if reply == QMessageBox.Yes:
+                if confirmed:
                     success, error_info = self._register_relay_session(name, force=True)
             if not success:
                 self.session_start_btn.setEnabled(True)
@@ -2962,6 +2975,17 @@ class MainWindow(QMainWindow):
         except (urllib.error.URLError, TimeoutError, OSError, ValueError):
             return []
 
+    def _resolve_remote_filename(self, artist, title):
+        """Cherche dans la bibliotheque partagee du PC fixe le fichier
+        correspondant a un artiste/titre (comparaison insensible a la casse)."""
+        target_artist = str(artist or "").strip().casefold()
+        target_title = str(title or "").strip().casefold()
+        for entry in self._fetch_central_catalogue():
+            if (str(entry.get("artist", "")).strip().casefold() == target_artist
+                    and str(entry.get("title", "")).strip().casefold() == target_title):
+                return str(entry.get("filename", "")).strip()
+        return ""
+
     def _download_from_central_library(self, filename):
         """Telecharge un MP4 de la bibliotheque partagee vers le dossier
         media local ; renvoie le chemin local ou None en cas d'echec."""
@@ -3183,16 +3207,26 @@ class MainWindow(QMainWindow):
     def play_song_object(self, song):
         filename = self.song_files.get(id(song))
         if not filename and id(song) in self.remote_songs:
-            try:
-                provider = LanMediaProvider(
-                    server=LAN_TEST_SERVER,
-                    port=LAN_MEDIA_PORT,
-                )
-                filename = str(provider.fetch_mp4(f"{song.artist}-{song.title}"))
-                self.song_files[id(song)] = filename
-            except (ConnectionError, FileNotFoundError, RuntimeError, OSError) as exc:
+            # Une demande venue du mobile n'a pas de fichier local : on va le
+            # chercher dans la bibliotheque partagee du PC fixe via le relais
+            # central (HTTPS, fonctionne sur n'importe quel reseau, y compris
+            # 4G — contrairement a l'ancien fallback LAN qui necessitait le
+            # meme reseau local que le PC fixe).
+            remote_filename = self._resolve_remote_filename(song.artist, song.title)
+            if remote_filename:
+                self.set_status(f"● Téléchargement de « {song.title} »...", True)
+                QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+                try:
+                    filename = self._download_from_central_library(remote_filename)
+                finally:
+                    QApplication.restoreOverrideCursor()
+                if filename:
+                    self.song_files[id(song)] = filename
+            if not filename:
                 self.play_btn.setText("▶")
-                self.set_status(f"● Média LAN indisponible : {exc}", False)
+                self.set_status(
+                    f"● Média distant indisponible pour « {song.title} »", False
+                )
                 return
         if not filename:
             self.play_btn.setText("▶")
