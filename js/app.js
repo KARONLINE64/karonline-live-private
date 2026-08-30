@@ -325,11 +325,21 @@ requestForm?.addEventListener('submit', async (event) => {
     });
     
     if (response.ok) {
-      dialog?.close();
-      catalogueDialog?.showModal();
-      search?.focus();
-      submitButton.disabled = false;
-      isSubmitting = false;
+      output.textContent = 'Demande reçue ! Retour au catalogue...';
+      output.classList.add('is-visible');
+      setTimeout(() => {
+        dialog?.close();
+        if (isMobileParticipant && isHostConnected()) {
+          try {
+            catalogueDialog?.showModal();
+            search?.focus();
+          } catch (dialogError) {
+            console.error('Erreur retour au catalogue:', dialogError);
+          }
+        }
+        submitButton.disabled = false;
+        isSubmitting = false;
+      }, 1200);
     } else if (response.status === 404 && getRelaySessionName()) {
       clearClosedRelaySession();
       output.textContent = '⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.';
