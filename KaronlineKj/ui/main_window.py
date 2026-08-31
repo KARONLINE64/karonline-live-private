@@ -1383,10 +1383,17 @@ class MainWindow(QMainWindow):
         page = QWidget()
         session_layout = QVBoxLayout(page)
 
+        session_account_info = QLabel(
+            "🔒 <b>COMPTE KARONLINELIVE OBLIGATOIRE</b><br>"
+            "Toute session KaronlineBox doit être obligatoirement liée à votre compte KaronlineLive (mêmes identifiants).<br>"
+            "Cette authentification garantit le débit de la bonne carte bancaire et l'arrivée certaine des demandes mobiles."
+        )
+        session_account_info.setWordWrap(True)
+        session_account_info.setStyleSheet("color:#00c8ff;font-size:12px;background:#08131c;border:1px solid #1b6f91;border-radius:6px;padding:10px;margin-bottom:6px;")
+        session_layout.addWidget(session_account_info)
+
         session_info = QLabel(
-            "Choisissez un nom simple (ex. soiree-marc) et cliquez sur "
-            "DÉMARRER : ce nom sera à partager avec vos invités sur "
-            "karonlinelive.com."
+            "Choisissez un nom de session (ex. soiree-marc) et cliquez sur DÉMARRER LA SESSION :"
         )
         session_info.setWordWrap(True)
         session_layout.addWidget(session_info)
@@ -2560,6 +2567,13 @@ class MainWindow(QMainWindow):
     # KARONLINEBOX DUO — Méthodes et événements de session DUO
     # ------------------------------------------------------------------
     def _start_duo_session_action(self):
+        if not self.ensure_central_login():
+            QMessageBox.warning(
+                self,
+                "CONNEXION COMPTE OBLIGATOIRE",
+                "Vous devez obligatoirement être connecté à votre compte KaronlineLive pour créer une session DUO."
+            )
+            return
         session_name = getattr(self, "_active_relay_session", None)
         ok, code, qr_url = self.duo_manager.create_session(session_name)
         if ok:
@@ -2659,8 +2673,17 @@ class MainWindow(QMainWindow):
 
     def start_public_session(self):
         """Enregistre le nom de session et démarre le relais central (aucun
-        tunnel/port entrant requis : uniquement une connexion sortante)."""
+        tunnel/port entrant requis : uniquement une connexion sortante).
+        Requiert obligatoirement une authentification valide au compte KaronlineLive du KJ/Hôte."""
         if not self.ensure_central_login():
+            QMessageBox.warning(
+                self,
+                "CONNEXION COMPTE OBLIGATOIRE",
+                "Connexion obligatoire à votre compte KaronlineLive (e-mail & mot de passe).\n\n"
+                "Cette étape garantit que votre session KaronlineBox est authentifiée,\n"
+                "que la facturation s'effectue sur le bon compte et que les demandes de titres\n"
+                "envoyées et payées sur karonlinelive.com arrivent avec certitude sur ce poste."
+            )
             self.set_status(
                 "● Connexion au compte requise pour démarrer une session",
                 False,
@@ -2691,16 +2714,28 @@ class MainWindow(QMainWindow):
                 )
                 return
 
-        self.session_status_label.setText("● Enregistrement de la session...")
+        self.session_status_label.setText(f"● Enregistrement de la session ({self.central_auth.email})...")
         success, error_info = self._register_relay_session(name)
         if not success:
             error_code = (error_info or {}).get("error", "")
-            if error_code == "SESSION_ALREADY_EXISTS":
+            if error_code in ("AUTH REQUIRED", "TOKEN INVALID", "HTTP 401"):
+                self._central_session_ok = False
+                self.central_auth.clear()
+                self.update_account_ui()
+                QMessageBox.warning(
+                    self,
+                    "SESSION COMPTE EXPIRÉE",
+                    "Votre jeton de compte KaronlineLive a expiré.\n"
+                    "Veuillez saisir à nouveau vos identifiants."
+                )
+                self.ensure_central_login()
+                self.session_start_btn.setEnabled(True)
+                return
+            elif error_code == "SESSION_ALREADY_EXISTS":
                 existing_name = (error_info or {}).get("existing_name", "")
                 confirmed = self._confirm_oui_non(
                     "SESSION DÉJÀ EXISTANTE",
-                    f"Une session (« {existing_name} ») est déjà active ailleurs"
-                    f" avec ce compte. La remplacer par « {name} » ?",
+                    f"Une session (« {existing_name} ») est déjà active ailleurs avec le compte {self.central_auth.email}.\nLa remplacer par « {name} » ?",
                 )
                 if confirmed:
                     success, error_info = self._register_relay_session(name, force=True)
@@ -2719,10 +2754,10 @@ class MainWindow(QMainWindow):
         self._relay_thread.start()
 
         self.session_status_label.setText(
-            f"● Session active ({self.central_auth.email or 'compte'}) :"
-            f" « {name} » — partagez ce nom à vos invités sur karonlinelive.com"
+            f"● Session active rattachée à {self.central_auth.email} :"
+            f" « {name} » — les demandes mobiles sur karonlinelive.com vous parviennent en direct."
         )
-        self.set_status(f"● Session « {name} » démarrée", True)
+        self.set_status(f"● Session « {name} » démarrée ({self.central_auth.email})", True)
         self.session_start_btn.setEnabled(True)
 
     @staticmethod
