@@ -31,6 +31,7 @@ USER_MESSAGES = {
     "TOKEN INVALID": "Session expirée, reconnectez-vous.",
     "CARD INVALID": "Numéro de carte invalide.",
     "BAD REQUEST": "Requête incomplète.",
+    "ALREADY_CONNECTED": "Ce compte est déjà connecté sur un autre appareil ou sur le site.",
 }
 
 
@@ -127,10 +128,14 @@ def api_register(email: str, password: str, card: str = "") -> dict:
     }
 
 
-def api_login(email: str, password: str) -> dict:
-    data = request_json("/auth/login", {
-        "email": normalize_email(email), "password": password,
-    })
+def api_login(email: str, password: str, force: bool = False) -> dict:
+    payload = {
+        "email": normalize_email(email),
+        "password": password,
+    }
+    if force:
+        payload["force"] = True
+    data = request_json("/auth/login", payload)
     return {
         "token": data.get("token", ""),
         "email": data.get("email", normalize_email(email)),
@@ -193,8 +198,8 @@ class CentralAuthClient:
             self.clear()
         return result
 
-    def login(self, email: str, password: str) -> dict:
-        result = api_login(email, password)
+    def login(self, email: str, password: str, force: bool = False) -> dict:
+        result = api_login(email, password, force=force)
         self.save_session(result["token"], result["email"],
                           result.get("card_label", ""))
         return result

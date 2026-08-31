@@ -9,7 +9,7 @@ import threading
 
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
-    QDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton,
+    QDialog, QFormLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QPushButton,
     QStackedWidget, QVBoxLayout, QWidget,
 )
 
@@ -140,7 +140,7 @@ class AuthDialog(QDialog):
         )
 
     # ------------------------------------------------------------------
-    def submit(self) -> None:
+    def submit(self, force: bool = False) -> None:
         register = self.stack.currentIndex() == 1
         if register:
             email = self.register_email.text().strip()
@@ -156,14 +156,14 @@ class AuthDialog(QDialog):
             self.feedback.setText("Courriel et mot de passe sont requis.")
             return
 
-        self.feedback.setStyleSheet("color:#9aa9b7;font-size:13px;")
+        self.feedback.setStyleSheet("color:#9aa9b7;font-size:12px;")
         self.feedback.setText("Communication avec le serveur…")
         self._set_busy(True)
         self._result = None
         self._done = False
         threading.Thread(
             target=self._work,
-            args=(register, email, password, card),
+            args=(register, email, password, card, force),
             daemon=True,
         ).start()
         self._poll_timer = QTimer(self)
@@ -175,16 +175,18 @@ class AuthDialog(QDialog):
         self.submit_btn.setEnabled(not busy)
 
     def _work(self, register: bool, email: str,
-              password: str, card: str) -> None:
-        from core.central_auth import api_login, api_register
+              password: str, card: str, force: bool = False) -> None:
+        from core.central_auth import AuthError, api_login, api_register
 
         try:
             if register:
                 outcome = (True, api_register(email, password, card), "")
             else:
-                outcome = (True, api_login(email, password), "")
+                outcome = (True, api_login(email, password, force=force), "")
+        except AuthError as exc:
+            outcome = (False, {"code": exc.code, "message": str(exc)}, str(exc))
         except Exception as exc:  # noqa: BLE001 — affiché tel quel
-            outcome = (False, None, str(exc))
+            outcome = (False, {"code": "UNKNOWN", "message": str(exc)}, str(exc))
         self._result = outcome
 
     def _poll_result(self) -> None:
@@ -196,7 +198,20 @@ class AuthDialog(QDialog):
         self._result = None
         self._set_busy(False)
         if not ok:
-            self.feedback.setStyleSheet("color:#ff6b6b;font-size:13px;")
+            code = data.get("code") if isinstance(data, dict) else ""
+            if code == "ALREADY_CONNECTED":
+                reply = QMessageBox.question(
+                    self,
+                    "COMPTE DÉJÀ CONNECTÉ",
+                    "Ce compte est déjà connecté sur un autre appareil ou sur le site.\n\n"
+                    "Voulez-vous déconnecter l'autre session et vous connecter ici ?",
+                    QMessageBox.Yes | QMessageBox.No,
+                    QMessageBox.Yes,
+                )
+                if reply == QMessageBox.Yes:
+                    self.submit(force=True)
+                    return
+            self.feedback.setStyleSheet("color:#ff6b6b;font-size:12px;")
             self.feedback.setText(message)
             return
         self.result_ok = True
