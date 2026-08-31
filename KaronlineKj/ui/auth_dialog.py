@@ -75,6 +75,7 @@ class AuthDialog(QDialog):
             "border:0;border-radius:5px;padding:8px 20px;"
             "color:#fff;font-weight:600;"
         )
+        self.submit_btn.clicked.connect(self.submit)
         buttons.addStretch(1)
         buttons.addWidget(self.cancel_btn)
         buttons.addWidget(self.submit_btn)
