@@ -23,7 +23,7 @@
       <a href="#" data-open-auth="register-dialog" class="nav-tab"><span class="nav-icon" aria-hidden="true">✈️</span> S'abonner</a>
       <a href="#" data-open-auth="login-dialog" data-auth="guest" class="nav-tab"><span class="nav-icon" aria-hidden="true">👤</span> Se connecter</a>
       <button type="button" data-auth="member" data-logout class="nav-tab nav-tab-logout" hidden><span class="nav-icon" aria-hidden="true">👤</span> Se déconnecter</button>
-      <a href="#" id="download-trigger-header" class="nav-tab"><span class="nav-icon" aria-hidden="true">📥</span> Téléchargements</a>
+      <a href="#" data-open-dialog="downloads-dialog" class="nav-tab"><span class="nav-icon" aria-hidden="true">📥</span> Téléchargements</a>
       <a href="#" data-open-dialog="trial-dialog" class="button button-primary nav-tab-trial"><span class="nav-icon" aria-hidden="true">✨</span> Essai gratuit</a>
     </nav>
   </header>
@@ -174,6 +174,20 @@
     <div class="request-actions">
       <button class="button button-primary" type="button" data-open-auth="register-dialog" data-close-dialog="trial-dialog">Démarrer l'essai gratuit</button>
       <button class="button button-primary" type="button" data-close-dialog="trial-dialog">Annuler</button>
+    </div>
+  </dialog>
+  <dialog id="downloads-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="downloads-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>Téléchargements</h2>
+    <p style="color: #d8dee5; font-size: 14px; margin-bottom: 16px;">
+      Espace utilitaires audio, karaoké et modules d'animation.
+    </p>
+    <p style="color: #9aa9b7; font-size: 13px; margin-bottom: 20px;">
+      Divers utilitaires et compléments seront très prochainement disponibles au téléchargement dans cette section.
+    </p>
+    <div class="request-actions">
+      <button class="button button-primary" type="button" data-close-dialog="downloads-dialog">Fermer</button>
     </div>
   </dialog>
   <div class="account-zone">

@@ -345,7 +345,7 @@
       <button id="register-trigger" class="register-trigger" type="button" data-open-auth="register-dialog" aria-label="S'abonner"></button>
       <button id="login-trigger" class="login-trigger" type="button" data-open-auth="login-dialog" data-auth="guest" aria-label="Se connecter"></button>
       <button id="logout-trigger" class="logout-trigger" type="button" data-auth="member" data-logout aria-label="Se déconnecter">Se déconnecter</button>
-      <button id="download-nav-trigger" class="download-nav-trigger" type="button" aria-label="Téléchargements"></button>
+      <button id="download-nav-trigger" class="download-nav-trigger" type="button" data-open-dialog="downloads-dialog" aria-label="Téléchargements"></button>
       <button id="trial-trigger" class="trial-trigger" type="button" data-open-dialog="trial-dialog" aria-label="Essai gratuit"></button>
       <span class="account-email-flashy" data-auth="member" data-account-email></span>
       <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
@@ -411,6 +411,20 @@
     <div class="request-actions">
       <button class="button button-primary" type="button" data-open-auth="register-dialog" data-close-dialog="trial-dialog">Démarrer l'essai gratuit</button>
       <button class="button button-primary" type="button" data-close-dialog="trial-dialog">Annuler</button>
+    </div>
+  </dialog>
+  <dialog id="downloads-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="downloads-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>Téléchargements</h2>
+    <p style="color: #d8dee5; font-size: 14px; margin-bottom: 16px;">
+      Espace utilitaires audio, karaoké et modules d'animation.
+    </p>
+    <p style="color: #9aa9b7; font-size: 13px; margin-bottom: 20px;">
+      Divers utilitaires et compléments seront très prochainement disponibles au téléchargement dans cette section.
+    </p>
+    <div class="request-actions">
+      <button class="button button-primary" type="button" data-close-dialog="downloads-dialog">Fermer</button>
     </div>
   </dialog>
   <dialog id="catalogue-dialog" class="catalogue-dialog" aria-labelledby="catalogue-dialog-title">
