@@ -1018,7 +1018,7 @@ class MainWindow(QMainWindow):
 
         grid = QGridLayout()
         self.kj_video_grid = grid
-        # GRANDE preserves the existing V67 proportions.
+        grid.setRowStretch(0, 5)
         grid.setColumnStretch(0, 3)
         grid.setColumnStretch(1, 5)
 
@@ -1518,19 +1518,19 @@ class MainWindow(QMainWindow):
             "Invitez un ami ou votre famille à chanter avec vous en direct.\n"
             "Chantez ensemble comme si vous étiez dans la même pièce !"
         )
-        duo_intro.setStyleSheet("color:#aeb7bf;font-size:13px;")
+        duo_intro.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
         duo_intro.setWordWrap(True)
         duo_box_layout.addWidget(duo_intro)
 
         duo_form = QFormLayout()
-        duo_form.setSpacing(12)
+        duo_form.setSpacing(14)
 
         self.duo_code_label = QLabel("○ Aucune session DUO active")
-        self.duo_code_label.setStyleSheet("color:#00c8ff;font-size:16px;font-weight:700;")
+        self.duo_code_label.setStyleSheet("color:#00c8ff;font-size:22px;font-weight:700;")
         duo_form.addRow("CODE DE SESSION", self.duo_code_label)
 
         self.duo_guest_label = QLabel("○ Aucun invité connecté")
-        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:13px;")
+        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
         duo_form.addRow("STATUT INVITÉ", self.duo_guest_label)
 
         duo_box_layout.addLayout(duo_form)
@@ -1539,15 +1539,15 @@ class MainWindow(QMainWindow):
         self.duo_start_btn = QPushButton("▶ DÉMARRER UNE SESSION DUO")
         self.duo_start_btn.setStyleSheet(
             "background:linear-gradient(110deg,#124de5,#194fff);"
-            "border:0;border-radius:5px;padding:10px 18px;"
-            "color:#fff;font-weight:700;font-size:14px;"
+            "border:0;border-radius:6px;padding:12px 22px;"
+            "color:#fff;font-weight:700;font-size:15px;"
         )
         self.duo_start_btn.clicked.connect(self._start_duo_session_action)
 
         self.duo_stop_btn = QPushButton("✕ FERMER LA SESSION DUO")
         self.duo_stop_btn.setStyleSheet(
-            "background:#3a151b;border:1px solid #e80055;border-radius:5px;"
-            "padding:10px 18px;color:#ff6b6b;font-weight:700;font-size:14px;"
+            "background:#3a151b;border:1px solid #e80055;border-radius:6px;"
+            "padding:12px 22px;color:#ff6b6b;font-weight:700;font-size:15px;"
         )
         self.duo_stop_btn.setEnabled(False)
         self.duo_stop_btn.clicked.connect(self._stop_duo_session_action)
@@ -1565,13 +1565,17 @@ class MainWindow(QMainWindow):
             "📱 Scannez le QR Code avec un smartphone pour chanter immédiatement à deux !"
         )
         self.duo_instructions.setAlignment(Qt.AlignCenter)
-        self.duo_instructions.setStyleSheet("color:#00c8ff;font-size:12px;font-weight:600;")
+        self.duo_instructions.setStyleSheet("color:#00c8ff;font-size:14px;font-weight:700;")
         qr_layout.addWidget(self.duo_qr_label)
         qr_layout.addWidget(self.duo_instructions)
         self.duo_qr_box.hide()
         duo_box_layout.addWidget(self.duo_qr_box)
 
         self.duo_overlay_btn = QPushButton("📹 AFFICHER / MASQUER LA WEBCAM INVITÉ")
+        self.duo_overlay_btn.setStyleSheet(
+            "background:#0d1822;border:1px solid #387a90;border-radius:6px;"
+            "padding:12px 18px;color:#f4f7fb;font-weight:700;font-size:14px;"
+        )
         self.duo_overlay_btn.clicked.connect(self._toggle_duo_overlay)
         duo_box_layout.addWidget(self.duo_overlay_btn)
 
@@ -1601,7 +1605,8 @@ class MainWindow(QMainWindow):
         vl.addWidget(lab)
 
         self.video = QWidget()
-        self.video.setMinimumHeight(240)
+        self.video.setMinimumHeight(340)
+        self.video.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.video.setAttribute(Qt.WA_NativeWindow, True)
         self.video.setStyleSheet(
             "background:#020305;border:1px solid #16222c;"
@@ -1625,6 +1630,8 @@ class MainWindow(QMainWindow):
             self.set_status(f"● GStreamer : {exc}", False)
 
         ctl = QHBoxLayout()
+        ctl.setContentsMargins(0, 0, 0, 0)
+        ctl.setSpacing(4)
         self.back_btn = QPushButton("⏪")
         self.play_btn = QPushButton("▶")
         self.stop_btn = QPushButton("■")
@@ -1635,14 +1642,11 @@ class MainWindow(QMainWindow):
             self.back_btn, self.play_btn, self.stop_btn,
             self.replay_btn, self.forward_btn
         ]:
-            # Largeur flexible (pas de min-width fixe) : les 5 boutons se
-            # partagent toujours toute la largeur du panneau video, quelle
-            # que soit la taille GRANDE/MOYENNE/PETITE choisie par le KJ.
             b.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            b.setMinimumHeight(48)
-            b.setMaximumHeight(64)
+            b.setMinimumHeight(32)
+            b.setMaximumHeight(38)
             b.setStyleSheet(
-                "font-size:20px;font-weight:700;"
+                "font-size:16px;font-weight:700;padding:2px 4px;"
             )
             ctl.addWidget(b)
 
@@ -1684,12 +1688,12 @@ class MainWindow(QMainWindow):
         ]:
             lab.setAlignment(Qt.AlignCenter)
             lab.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-            lab.setMinimumHeight(34)
-            lab.setMaximumHeight(40)
+            lab.setMinimumHeight(24)
+            lab.setMaximumHeight(28)
             lab.setStyleSheet(
-                "color:#ff8a00;font-size:16px;font-weight:700;"
+                "color:#ff8a00;font-size:13px;font-weight:700;"
                 "background:#080d12;border:1px solid #1d2a35;"
-                "border-radius:5px;padding:2px 4px;"
+                "border-radius:4px;padding:1px 3px;"
             )
 
         time_row.addWidget(self.elapsed_label, 1)
@@ -1723,11 +1727,15 @@ class MainWindow(QMainWindow):
 
         kb = QGroupBox("CHANGEUR DE TONALITÉ")
         kl = QHBoxLayout(kb)
+        kl.setContentsMargins(4, 4, 4, 4)
+        kl.setSpacing(2)
         self.key_buttons = {}
 
         for k in range(-6, 7):
             b = QPushButton(f"{k:+d}")
-            b.setMinimumWidth(48)
+            b.setMinimumWidth(32)
+            b.setMaximumHeight(30)
+            b.setStyleSheet("font-size:12px;font-weight:600;padding:2px;")
             self.key_buttons[k] = b
             b.clicked.connect(
                 lambda checked=False, x=k: self.highlight_key(x)
@@ -1738,21 +1746,26 @@ class MainWindow(QMainWindow):
 
         vb2 = QGroupBox("VOLUME KARAOKÉ & MUSIQUE")
         v = QVBoxLayout(vb2)
+        v.setContentsMargins(4, 4, 4, 4)
+        v.setSpacing(2)
         v.addLayout(self.volume_row("Karaoké"))
         v.addLayout(self.volume_row("Musique"))
         bottom.addWidget(vb2, 2)
 
         eb = QGroupBox("ÉCRAN PUBLIC")
         el = QVBoxLayout(eb)
+        el.setContentsMargins(4, 4, 4, 4)
         pb = QPushButton(
             "▣  Ouvrir une fenêtre pour la vidéo sur écran externe"
         )
+        pb.setMaximumHeight(32)
+        pb.setStyleSheet("font-size:11px;padding:3px 6px;")
         pb.clicked.connect(self.open_public_window)
         el.addWidget(pb)
         bottom.addWidget(eb, 1)
 
-        outer.addLayout(grid)
-        outer.addLayout(bottom)
+        outer.addLayout(grid, 4)
+        outer.addLayout(bottom, 1)
 
     def _favorite_link_item(self, display_text, data):
         item = QListWidgetItem()
