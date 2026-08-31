@@ -1533,26 +1533,43 @@ class MainWindow(QMainWindow):
         self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
         duo_form.addRow("STATUT INVITÉ", self.duo_guest_label)
 
+        # Champ de saisie pour rejoindre une session en tant qu'invité Desktop
+        self.duo_join_input = QLineEdit()
+        self.duo_join_input.setPlaceholderText("Entrez le code hôte (ex: DUO-8492)")
+        self.duo_join_input.setStyleSheet(
+            "background:#0b1821;border:1px solid #387a90;border-radius:4px;"
+            "color:#00c8ff;font-size:15px;font-weight:700;padding:6px 10px;"
+        )
+        duo_form.addRow("REJOINDRE (INVITÉ)", self.duo_join_input)
+
         duo_box_layout.addLayout(duo_form)
 
         duo_buttons = QHBoxLayout()
-        self.duo_start_btn = QPushButton("▶ DÉMARRER UNE SESSION DUO")
+        self.duo_start_btn = QPushButton("▶ DÉMARRER UNE SESSION DUO (HÔTE)")
         self.duo_start_btn.setStyleSheet(
             "background:linear-gradient(110deg,#124de5,#194fff);"
-            "border:0;border-radius:6px;padding:12px 22px;"
-            "color:#fff;font-weight:700;font-size:15px;"
+            "border:0;border-radius:6px;padding:12px 18px;"
+            "color:#fff;font-weight:700;font-size:14px;"
         )
         self.duo_start_btn.clicked.connect(self._start_duo_session_action)
 
-        self.duo_stop_btn = QPushButton("✕ FERMER LA SESSION DUO")
+        self.duo_join_btn = QPushButton("🔗 REJOINDRE")
+        self.duo_join_btn.setStyleSheet(
+            "background:#0d1822;border:1px solid #00c8ff;border-radius:6px;"
+            "padding:12px 18px;color:#00c8ff;font-weight:700;font-size:14px;"
+        )
+        self.duo_join_btn.clicked.connect(self._join_duo_session_action)
+
+        self.duo_stop_btn = QPushButton("✕ FERMER / QUITTER")
         self.duo_stop_btn.setStyleSheet(
             "background:#3a151b;border:1px solid #e80055;border-radius:6px;"
-            "padding:12px 22px;color:#ff6b6b;font-weight:700;font-size:15px;"
+            "padding:12px 18px;color:#ff6b6b;font-weight:700;font-size:14px;"
         )
         self.duo_stop_btn.setEnabled(False)
         self.duo_stop_btn.clicked.connect(self._stop_duo_session_action)
 
         duo_buttons.addWidget(self.duo_start_btn)
+        duo_buttons.addWidget(self.duo_join_btn)
         duo_buttons.addWidget(self.duo_stop_btn)
         duo_buttons.addStretch()
         duo_box_layout.addLayout(duo_buttons)
@@ -2548,9 +2565,25 @@ class MainWindow(QMainWindow):
         if ok:
             self.duo_code_label.setText(f"🟢 {code}")
             self.duo_start_btn.setEnabled(False)
+            self.duo_join_btn.setEnabled(False)
             self.duo_stop_btn.setEnabled(True)
-            self.set_status(f"● Session DUO {code} démarrée", True)
+            self.set_status(f"● Session DUO Hôte {code} démarrée", True)
             threading.Thread(target=self._fetch_duo_qr_pixmap, args=(qr_url,), daemon=True).start()
+
+    def _join_duo_session_action(self):
+        code = self.duo_join_input.text().strip().upper()
+        if not code:
+            QMessageBox.warning(self, "CODE DUO MANQUANT", "Veuillez entrer le code DUO transmis par l'hôte (ex: DUO-8492).")
+            return
+        ok, msg = self.duo_manager.join_session(code, guest_name="Invité Desktop")
+        if ok:
+            self.duo_code_label.setText(f"🟢 {code} (Invité)")
+            self.duo_guest_label.setText("🟢 Connecté à l'hôte")
+            self.duo_start_btn.setEnabled(False)
+            self.duo_join_btn.setEnabled(False)
+            self.duo_stop_btn.setEnabled(True)
+            self.set_status(f"● {msg}", True)
+            self._ensure_duo_overlay("Hôte DUO")
 
     def _fetch_duo_qr_pixmap(self, qr_url: str):
         try:
@@ -2574,6 +2607,7 @@ class MainWindow(QMainWindow):
         self.duo_guest_label.setText("○ Aucun invité connecté")
         self.duo_qr_box.hide()
         self.duo_start_btn.setEnabled(True)
+        self.duo_join_btn.setEnabled(True)
         self.duo_stop_btn.setEnabled(False)
         if self.duo_overlay:
             self.duo_overlay.close()

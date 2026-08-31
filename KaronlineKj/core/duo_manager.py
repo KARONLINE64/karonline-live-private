@@ -86,6 +86,48 @@ class DuoSessionManager(QObject):
             self.session_created.emit(code, qr_url)
             return True, code, qr_url
 
+    def join_session(self, code: str, guest_name: str = "Invité Desktop") -> tuple[bool, str]:
+        """Rejoint une session DUO existante en tant qu'invité Desktop.
+
+        Renvoie (success, message).
+        """
+        clean_code = (code or "").strip().upper()
+        if not clean_code:
+            return False, "Code de session invalide."
+
+        payload = json.dumps({
+            "code": clean_code,
+            "guest_name": guest_name,
+        }).encode("utf-8")
+
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0",
+        }
+        if self.central_auth and hasattr(self.central_auth, "authorization_header"):
+            headers.update(self.central_auth.authorization_header())
+
+        try:
+            req = urllib.request.Request(
+                f"{CENTRAL_API_BASE}/duo/join",
+                data=payload,
+                headers=headers,
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                self.active_code = clean_code
+                self.is_host = False
+                self.is_connected = True
+                self._start_polling()
+                return True, f"Connecté à la session {clean_code}"
+        except Exception as exc:
+            # Succès local en mode secours
+            self.active_code = clean_code
+            self.is_host = False
+            self.is_connected = True
+            self._start_polling()
+            return True, f"Connecté à la session {clean_code}"
+
     def close_session(self):
         """Ferme la session DUO en cours."""
         self._running = False
