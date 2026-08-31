@@ -21,7 +21,6 @@ DEFAULT_LIBRARY = Path(__file__).resolve().parent.parent / "SERVER"
 # session (mode relais = connexion sortante uniquement, aucun tunnel/port
 # entrant requis chez le KJ). Sert uniquement sur l'instance centrale
 # (api.karonlinelive.com).
-SESSIONS: dict[str, dict] = {}
 SESSION_TTL_SECONDS = 24 * 3600
 SESSION_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{1,39}$")
 
@@ -50,6 +49,7 @@ except OSError:
     pass
 ACCOUNTS_PATH = DATA_DIR / "accounts.json"
 TOKENS_PATH = DATA_DIR / "tokens.json"
+SESSIONS_PATH = DATA_DIR / "sessions.json"
 TOKEN_TTL_SECONDS = 30 * 24 * 3600
 PBKDF2_ITERATIONS = 120_000
 
@@ -59,6 +59,12 @@ _AUTH_LOCK = threading.RLock()
 _ACCOUNTS: dict[str, dict] | None = None
 _TOKENS: dict[str, dict] | None = None
 _VERIFICATIONS: dict[str, dict] = {}
+SESSIONS: dict[str, dict] = {}
+
+try:
+    _load_sessions_on_startup()
+except Exception:
+    pass
 
 
 def _load_json(path: Path, default):
@@ -73,6 +79,32 @@ def _save_json(path: Path, value) -> None:
     tmp.write_text(json.dumps(value, ensure_ascii=False, indent=1),
                    encoding="utf-8")
     tmp.replace(path)
+
+
+def _load_sessions_on_startup():
+    global SESSIONS
+    with _RELAY_LOCK:
+        data = _load_json(SESSIONS_PATH, {})
+        if isinstance(data, dict):
+            now = time.time()
+            for name, entry in data.items():
+                if isinstance(entry, dict) and now - entry.get("ts", 0) <= SESSION_TTL_SECONDS:
+                    entry["queue"] = []
+                    SESSIONS[name] = entry
+
+
+def _save_sessions():
+    with _RELAY_LOCK:
+        serializable = {}
+        now = time.time()
+        for name, entry in SESSIONS.items():
+            if now - entry.get("ts", 0) <= SESSION_TTL_SECONDS:
+                serializable[name] = {
+                    "ts": entry.get("ts"),
+                    "owner": entry.get("owner"),
+                    "host_url": entry.get("host_url"),
+                }
+        _save_json(SESSIONS_PATH, serializable)
 
 
 def _accounts() -> dict[str, dict]:
@@ -903,6 +935,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             entry["host_url"] = host_url
 
         SESSIONS[name] = entry
+        _save_sessions()
         print(f"SESSION REGISTERED = {name} "
               f"(owner={owner}, mode={'legacy' if host_url else 'relay'})", flush=True)
         self._send_json(200, {"status": "ok", "name": name, "owner": owner})
@@ -926,6 +959,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
 
         SESSIONS.pop(name, None)
+        _save_sessions()
         self._send_json(200, {"status": "ok"})
 
     def _relay_push_endpoint(self):

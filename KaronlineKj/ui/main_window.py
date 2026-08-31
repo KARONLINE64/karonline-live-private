@@ -2888,6 +2888,18 @@ class MainWindow(QMainWindow):
                 )
                 with urllib.request.urlopen(pull_request, timeout=30) as response:
                     data = json.loads(response.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                if exc.code == 404:
+                    print(f"RELAY SESSION '{name}' NOT FOUND ON SERVER, AUTO RE-REGISTERING...", flush=True)
+                    self._register_relay_session(name, force=True)
+                elif exc.code == 401:
+                    print("RELAY TOKEN EXPIRED. CLEARING SESSION...", flush=True)
+                    self._central_session_ok = False
+                    self.central_auth.clear()
+                    self.update_account_ui()
+                    break
+                time.sleep(2)
+                continue
             except (urllib.error.URLError, TimeoutError, OSError, ValueError):
                 time.sleep(2)
                 continue
