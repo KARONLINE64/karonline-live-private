@@ -12,34 +12,164 @@ document.querySelectorAll('.main-nav a').forEach((link) => {
 
 const songsContainer = document.querySelector('#songs');
 const catalogueDialog = document.querySelector('#catalogue-dialog');
-const catalogueTrigger = document.querySelector('#catalogue-trigger');
+const catalogueTriggers = document.querySelectorAll('#catalogue-trigger, #catalogue-trigger-mobile');
 const dialog = document.querySelector('#request-dialog');
 const requestForm = document.querySelector('#request-form');
 const resultCount = document.querySelector('#result-count');
 const emptyState = document.querySelector('#empty-state');
 const search = document.querySelector('#search');
-const downloadTrigger = document.querySelector('#download-trigger');
-const downloadStatus = document.querySelector('#download-status');
+const downloadTriggers = document.querySelectorAll('#download-trigger, #download-trigger-mobile, #download-nav-trigger, #download-trigger-header');
+const downloadStatuses = document.querySelectorAll('#download-status, #download-status-mobile');
+const hostDialog = document.querySelector('#host-connect-dialog');
+const hostForm = document.querySelector('#host-connect-form');
+const hostInput = document.querySelector('#host-url-input');
+const hostStatuses = document.querySelectorAll('.host-status');
+const hostChangeButtons = document.querySelectorAll('[data-change-host]');
+const hostDisconnectButtons = document.querySelectorAll('[data-disconnect-host]');
 let songs = [];
 let isSubmitting = false;
 let isDownloading = false;
+let isMobileParticipant = false; // Mode mobile: participant dans une session KJ, pas compte KJ
+let isDesktopCatalogueRequested = false; // Mode desktop: vrai seulement après clic explicite sur Catalogue
 
-catalogueTrigger?.addEventListener('click', () => {
-  catalogueDialog?.showModal();
+function refreshHostStatus() {
+  const relayName = getRelaySessionName();
+  const url = getHostServerUrl();
+  hostStatuses.forEach((el) => {
+    if (relayName) {
+      el.textContent = `Connecté à la session : ${relayName}`;
+    } else if (url) {
+      el.textContent = `Connecté à : ${url.replace(/^https?:\/\//, '')}`;
+    } else {
+      el.textContent = 'Non connecté à un hôte';
+    }
+  });
+}
+
+function disconnectFromHost() {
+  clearHostServerUrl();
+  isMobileParticipant = false;
+  songs = [];
+  refreshHostStatus();
+  catalogueDialog?.close();
+  hostDialog?.showModal();
+}
+
+function clearClosedRelaySession() {
+  if (!getRelaySessionName()) return;
+  clearHostServerUrl();
+  isMobileParticipant = false;
+  songs = [];
+  refreshHostStatus();
+}
+
+// Renvoie true si un hote est deja configure, sinon ouvre le dialog de connexion et renvoie false
+function ensureHostConnected() {
+  if (isHostConnected()) return true;
+  hostDialog?.showModal();
+  return false;
+}
+
+// Renvoie true si un compte KJ est connecte, sinon ouvre le dialog de connexion
+function ensureAuthenticated() {
+  const token = localStorage.getItem('kl_auth_token');
+  const email = localStorage.getItem('kl_auth_email');
+
+  if (token && email) return true;
+  document.querySelector('#login-dialog')?.showModal();
+  return false;
+}
+
+hostForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const submitBtn = hostForm.querySelector('button[type="submit"]');
+  const errorEl = hostForm.querySelector('.host-connect-error');
+  if (errorEl) errorEl.textContent = '';
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Connexion...';
+
+  const result = await connectToHost(hostInput.value);
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Se connecter';
+
+  if (!result.ok) {
+    if (errorEl) {
+      errorEl.textContent = result.error === 'SESSION NOT FOUND'
+        ? '❌ Nom de session introuvable. Vérifiez avec votre animateur.'
+        : '❌ Connexion impossible. Réessayez.';
+    }
+    return;
+  }
+
+  hostInput.value = '';
+  refreshHostStatus();
+  hostDialog?.close();
+  try {
+    if (catalogueDialog?.open) catalogueDialog.close();
+    catalogueDialog?.showModal();
+  } catch (dialogError) {
+    console.error('Erreur ouverture du catalogue:', dialogError);
+  }
   search?.focus();
+  loadCatalogue();
 });
 
-downloadTrigger?.addEventListener('click', async () => {
+hostChangeButtons.forEach((button) => button.addEventListener('click', () => {
+  hostDialog?.showModal();
+}));
+
+hostDisconnectButtons.forEach((button) => button.addEventListener('click', () => {
+  disconnectFromHost();
+}));
+
+refreshHostStatus();
+
+// Desktop: catalogue requiert SEULEMENT l'authentification KJ (pas de nom de session hôte)
+const catalogueTriggerDesktop = document.querySelector('#catalogue-trigger');
+if (catalogueTriggerDesktop) {
+  catalogueTriggerDesktop.addEventListener('click', () => {
+    if (!ensureAuthenticated()) return;
+    isDesktopCatalogueRequested = true;
+    catalogueDialog?.showModal();
+    search?.focus();
+    loadCatalogue();
+  });
+}
+
+// Mobile: le nom de session est conserve dans le navigateur jusqu'a la
+// deconnexion volontaire de l'invite ou l'arret de la session KaronlineBox.
+const catalogueTriggerMobile = document.querySelector('#catalogue-trigger-mobile');
+if (catalogueTriggerMobile) {
+  catalogueTriggerMobile.addEventListener('click', () => {
+    isMobileParticipant = true;
+    if (isHostConnected()) {
+      catalogueDialog?.showModal();
+      search?.focus();
+      loadCatalogue();
+      return;
+    }
+    hostDialog?.showModal();
+  });
+}
+
+function setDownloadStatus(text, state) {
+  downloadStatuses.forEach((el) => {
+    el.textContent = text;
+    el.classList.toggle('visible', Boolean(text));
+    el.classList.remove('error', 'success');
+    if (state) el.classList.add(state);
+  });
+}
+
+downloadTriggers.forEach((trigger) => trigger.addEventListener('click', async () => {
   if (isDownloading) return;
   
   isDownloading = true;
-  downloadTrigger.disabled = true;
-  downloadStatus.textContent = '⏳ Vérification du serveur LAN...';
-  downloadStatus.classList.add('visible');
-  downloadStatus.classList.remove('error', 'success');
+  downloadTriggers.forEach((t) => t.disabled = true);
+  setDownloadStatus('⏳ Téléchargement en cours...');
   
   try {
-    downloadStatus.textContent = '⏳ Téléchargement en cours...';
     const downloadUrl = getKaronlineBoxDownloadUrl();
     
     // Créer un lien invisible et cliquer dessus pour télécharger
@@ -50,22 +180,20 @@ downloadTrigger?.addEventListener('click', async () => {
     link.click();
     document.body.removeChild(link);
     
-    downloadStatus.textContent = '✅ Téléchargement lancé! Vérifiez votre dossier Téléchargements.';
-    downloadStatus.classList.add('success');
+    setDownloadStatus('✅ Téléchargement lancé! Vérifiez votre dossier Téléchargements.', 'success');
     
     setTimeout(() => {
       isDownloading = false;
-      downloadTrigger.disabled = false;
-      downloadStatus.classList.remove('visible', 'success');
+      downloadTriggers.forEach((t) => t.disabled = false);
+      downloadStatuses.forEach((el) => el.classList.remove('visible', 'success'));
     }, 3000);
   } catch (error) {
     console.error('Erreur téléchargement:', error);
-    downloadStatus.textContent = '❌ Erreur lors du téléchargement. Vérifiez votre connexion au serveur LAN.';
-    downloadStatus.classList.add('error');
+    setDownloadStatus('❌ Erreur lors du téléchargement. Réessayez.', 'error');
     isDownloading = false;
-    downloadTrigger.disabled = false;
+    downloadTriggers.forEach((t) => t.disabled = false);
   }
-});
+}));
 
 document.querySelectorAll('[data-close-dialog]').forEach((button) => {
   button.addEventListener('click', () => {
@@ -73,15 +201,54 @@ document.querySelectorAll('[data-close-dialog]').forEach((button) => {
   });
 });
 
+document.querySelectorAll('[data-open-dialog]').forEach((opener) => {
+  opener.addEventListener('click', (event) => {
+    event.preventDefault();
+    const dialogId = opener.dataset.openDialog;
+    if (dialogId) {
+      document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+      document.querySelector(`#${dialogId}`)?.showModal();
+    }
+  });
+});
+
 async function loadCatalogue() {
   if (!songsContainer) return;
+
+  if (!isMobileParticipant && !localStorage.getItem('kl_auth_token')) {
+    songsContainer.innerHTML = '<p class="empty-state">🔒 Connectez-vous à votre compte KJ pour accéder au catalogue.</p>';
+    return;
+  }
+
+  // Desktop KJ : le catalogue est celui de sa propre KaronlineBox locale,
+  // jamais une session d'un autre hôte a rejoindre. Ne s'applique qu'après
+  // un clic explicite sur le bouton Catalogue desktop (jamais au chargement
+  // initial de la page, pour ne pas polluer le flux mobile "Participer").
+  if (isDesktopCatalogueRequested && !isMobileParticipant && !isHostConnected()) {
+    setHostServerUrl('http://localhost:8765');
+    refreshHostStatus();
+  }
+
+  if (!isHostConnected()) {
+    songsContainer.innerHTML = '<p class="empty-state">🔌 Connectez-vous à un hôte KaronlineBox pour voir son catalogue.</p>';
+    return;
+  }
   try {
     const isAvailable = await checkLanServerAvailability();
     if (!isAvailable) {
-      songsContainer.innerHTML = '<p class="empty-state">⚠️ Serveur LAN indisponible. Le serveur local doit être lancé pour charger le catalogue (python lan_server.py --port 8765).</p>';
+      if (!isHostConnected()) {
+        songsContainer.innerHTML = '<p class="empty-state">⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.</p>';
+      } else {
+        songsContainer.innerHTML = '<p class="empty-state">⚠️ Serveur indisponible. Vérifiez que KaronlineBox et le tunnel de votre hôte sont actifs.</p>';
+      }
       return;
     }
     const response = await fetch(getCatalogueUrl());
+    if (response.status === 404 && getRelaySessionName()) {
+      clearClosedRelaySession();
+      songsContainer.innerHTML = '<p class="empty-state">⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.</p>';
+      return;
+    }
     if (!response.ok) throw new Error('Catalogue indisponible');
     songs = await response.json();
     renderSongs(songs);
@@ -169,13 +336,32 @@ requestForm?.addEventListener('submit', async (event) => {
     });
     
     if (response.ok) {
-      output.textContent = 'Demande reçue ! Merci, vous êtes enregistré.';
+      output.textContent = 'Demande reçue ! Retour au catalogue...';
       output.classList.add('is-visible');
-      // Permettre à l'utilisateur de fermer le popup après succès
       setTimeout(() => {
+        dialog?.close();
+        if (isMobileParticipant && isHostConnected()) {
+          try {
+            catalogueDialog?.showModal();
+            search?.focus();
+          } catch (dialogError) {
+            console.error('Erreur retour au catalogue:', dialogError);
+          }
+        }
         submitButton.disabled = false;
         isSubmitting = false;
-      }, 2000);
+      }, 1200);
+    } else if (response.status === 404 && getRelaySessionName()) {
+      clearClosedRelaySession();
+      output.textContent = '⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.';
+      output.classList.add('is-visible');
+      submitButton.disabled = false;
+      isSubmitting = false;
+    } else if (response.status === 409) {
+      output.textContent = '❌ KaronlineBox non actif. Lancez l\'application d\'abord.';
+      output.classList.add('is-visible');
+      submitButton.disabled = false;
+      isSubmitting = false;
     } else {
       output.textContent = `Erreur serveur (${response.status}). Veuillez réessayer.`;
       output.classList.add('is-visible');
@@ -200,4 +386,19 @@ function escapeHtml(value) {
   return value.replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' })[character]);
 }
 
-loadCatalogue();
+// Page catalogue.html autonome : auth d'abord, puis hôte si nécessaire.
+// Sur index.html (catalogueDialog présent), rien à charger au chargement de
+// la page : le catalogue ne se charge que sur clic explicite (desktop
+// "Catalogue" ou mobile "Participer"), jamais automatiquement.
+if (!catalogueDialog && songsContainer) {
+  if (getRelaySessionName()) {
+    isMobileParticipant = true;
+    loadCatalogue();
+  } else if (!localStorage.getItem('kl_auth_token')) {
+    document.querySelector('#login-dialog')?.showModal();
+  } else if (!isHostConnected()) {
+    hostDialog?.showModal();
+  } else {
+    loadCatalogue();
+  }
+}

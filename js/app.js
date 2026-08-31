@@ -18,7 +18,7 @@ const requestForm = document.querySelector('#request-form');
 const resultCount = document.querySelector('#result-count');
 const emptyState = document.querySelector('#empty-state');
 const search = document.querySelector('#search');
-const downloadTriggers = document.querySelectorAll('#download-trigger, #download-trigger-mobile');
+const downloadTriggers = document.querySelectorAll('#download-trigger, #download-trigger-mobile, #download-nav-trigger, #download-trigger-header');
 const downloadStatuses = document.querySelectorAll('#download-status, #download-status-mobile');
 const hostDialog = document.querySelector('#host-connect-dialog');
 const hostForm = document.querySelector('#host-connect-form');
@@ -198,6 +198,17 @@ downloadTriggers.forEach((trigger) => trigger.addEventListener('click', async ()
 document.querySelectorAll('[data-close-dialog]').forEach((button) => {
   button.addEventListener('click', () => {
     document.querySelector(`#${button.dataset.closeDialog}`)?.close();
+  });
+});
+
+document.querySelectorAll('[data-open-dialog]').forEach((opener) => {
+  opener.addEventListener('click', (event) => {
+    event.preventDefault();
+    const dialogId = opener.dataset.openDialog;
+    if (dialogId) {
+      document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+      document.querySelector(`#${dialogId}`)?.showModal();
+    }
   });
 });
 

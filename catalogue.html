@@ -11,10 +11,20 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="index.html">Karonline<span>Live</span></a>
+    <a class="brand" href="index.html" aria-label="Accueil KaronlineLive">
+      <span class="brand-title">Karonline<span class="brand-live">Live</span></span>
+      <span class="brand-sub">LE SITE DE KARAOKÉ &amp; ANIMATION</span>
+    </a>
     <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav">Menu</button>
     <nav id="main-nav" class="main-nav" aria-label="Navigation principale">
-      <a href="index.html#about">A propos</a><a class="active" href="catalogue.html">Catalogue</a><a href="index.html#offer">Offre bundle</a><a href="#" data-open-auth="login-dialog">Se connecter</a><a href="#" data-open-auth="register-dialog">S'enregistrer</a><a href="index.html#downloads">Telechargements</a><a class="button button-primary" href="index.html#trial">Essai gratuit</a>
+      <a href="#" data-open-dialog="about-dialog" class="nav-tab"><span class="nav-icon" aria-hidden="true">ⓘ</span> À propos</a>
+      <a href="catalogue.html" class="nav-tab active"><span class="nav-icon" aria-hidden="true">🎼</span> Catalogue</a>
+      <a href="#" data-open-dialog="bundle-dialog" class="nav-tab"><span class="nav-icon" aria-hidden="true">🏷️</span> Offre bundle</a>
+      <a href="#" data-open-auth="register-dialog" class="nav-tab"><span class="nav-icon" aria-hidden="true">✈️</span> S'abonner</a>
+      <a href="#" data-open-auth="login-dialog" data-auth="guest" class="nav-tab"><span class="nav-icon" aria-hidden="true">👤</span> Se connecter</a>
+      <button type="button" data-auth="member" data-logout class="nav-tab nav-tab-logout" hidden><span class="nav-icon" aria-hidden="true">👤</span> Se déconnecter</button>
+      <a href="#" id="download-trigger-header" class="nav-tab"><span class="nav-icon" aria-hidden="true">📥</span> Téléchargements</a>
+      <a href="#" data-open-dialog="trial-dialog" class="button button-primary nav-tab-trial"><span class="nav-icon" aria-hidden="true">✨</span> Essai gratuit</a>
     </nav>
   </header>
   <main class="catalogue-page">
@@ -121,6 +131,50 @@
       </form>
     </div>
     <output id="forgot-result" class="request-result" aria-live="polite"></output>
+  </dialog>
+  <dialog id="about-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="about-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>À propos</h2>
+    <p style="color: #d8dee5; font-size: 14px; margin-bottom: 16px;">
+      KaronlineLive est la solution moderne de karaoké &amp; animation en ligne pour soirées, événements, établissements et passionnés.
+    </p>
+    <p style="color: #9aa9b7; font-size: 13px; margin-bottom: 20px;">
+      Profitez de notre catalogue interactif, gérez vos sessions en direct avec KaronlineBox et créez des moments d'animation inoubliables.
+    </p>
+    <div class="request-actions">
+      <button class="button button-primary" type="button" data-close-dialog="about-dialog">Fermer</button>
+    </div>
+  </dialog>
+  <dialog id="bundle-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="bundle-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>Offre bundle</h2>
+    <p style="color: #d8dee5; font-size: 14px; margin-bottom: 16px;">
+      Découvrez nos formules combinées : système d'animation complet, gestion multi-écrans et accès illimité au catalogue de karaoké.
+    </p>
+    <p style="color: #9aa9b7; font-size: 13px; margin-bottom: 20px;">
+      Idéal pour les animateurs pro et les établissements souhaitant une solution intégrée clef en main.
+    </p>
+    <div class="request-actions">
+      <button class="button button-primary" type="button" data-open-auth="register-dialog" data-close-dialog="bundle-dialog">S'abonner maintenant</button>
+      <button class="button button-primary" type="button" data-close-dialog="bundle-dialog">Fermer</button>
+    </div>
+  </dialog>
+  <dialog id="trial-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="trial-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>Essai gratuit</h2>
+    <p style="color: #d8dee5; font-size: 14px; margin-bottom: 16px;">
+      Testez KaronlineLive gratuitement et explorez toutes les fonctionnalités de notre application karaoké !
+    </p>
+    <p style="color: #9aa9b7; font-size: 13px; margin-bottom: 20px;">
+      Création de compte instantanée sans engagement et sans carte bancaire requise.
+    </p>
+    <div class="request-actions">
+      <button class="button button-primary" type="button" data-open-auth="register-dialog" data-close-dialog="trial-dialog">Démarrer l'essai gratuit</button>
+      <button class="button button-primary" type="button" data-close-dialog="trial-dialog">Annuler</button>
+    </div>
   </dialog>
   <div class="account-zone">
     <div data-auth="member" class="account-chip-row" hidden>

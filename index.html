@@ -49,62 +49,52 @@
       -webkit-user-drag: none;
     }
 
-    .catalogue-trigger {
+    .about-trigger,
+    .catalogue-trigger,
+    .bundle-trigger,
+    .register-trigger,
+    .login-trigger,
+    .download-nav-trigger,
+    .trial-trigger {
       background: transparent;
       border: 0;
       cursor: pointer;
-      inset: 3.1% auto auto 30.9%;
       padding: 0;
       position: absolute;
       z-index: 1;
-      width: 8.8%;
-      height: 6%;
+      border-radius: 6px;
+      transition: background 0.15s, outline 0.15s;
     }
 
-    .catalogue-trigger:focus-visible {
+    .about-trigger:hover,
+    .catalogue-trigger:hover,
+    .bundle-trigger:hover,
+    .register-trigger:hover,
+    .login-trigger:hover,
+    .download-nav-trigger:hover,
+    .trial-trigger:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .about-trigger:focus-visible,
+    .catalogue-trigger:focus-visible,
+    .bundle-trigger:focus-visible,
+    .register-trigger:focus-visible,
+    .login-trigger:focus-visible,
+    .download-nav-trigger:focus-visible,
+    .trial-trigger:focus-visible {
       border: 2px solid #fff;
-      border-radius: 5px;
       outline: 2px solid #145cff;
       outline-offset: 2px;
     }
 
-    .register-trigger {
-      background: transparent;
-      border: 0;
-      cursor: pointer;
-      inset: 3.1% auto auto 50.4%;
-      padding: 0;
-      position: absolute;
-      width: 9.4%;
-      height: 6%;
-      z-index: 1;
-    }
-
-    .register-trigger:focus-visible {
-      border: 2px solid #fff;
-      border-radius: 5px;
-      outline: 2px solid #145cff;
-      outline-offset: 2px;
-    }
-
-    .login-trigger {
-      background: transparent;
-      border: 0;
-      cursor: pointer;
-      inset: 3.1% auto auto 61%;
-      padding: 0;
-      position: absolute;
-      width: 10%;
-      height: 6%;
-      z-index: 1;
-    }
-
-    .login-trigger:focus-visible {
-      border: 2px solid #fff;
-      border-radius: 5px;
-      outline: 2px solid #145cff;
-      outline-offset: 2px;
-    }
+    .about-trigger { inset: 3.1% auto auto 22.3%; width: 7.8%; height: 6%; }
+    .catalogue-trigger { inset: 3.1% auto auto 30.8%; width: 8.8%; height: 6%; }
+    .bundle-trigger { inset: 3.1% auto auto 40.3%; width: 9.3%; height: 6%; }
+    .register-trigger { inset: 3.1% auto auto 50.4%; width: 9.4%; height: 6%; }
+    .login-trigger { inset: 3.1% auto auto 60.5%; width: 10.4%; height: 6%; }
+    .download-nav-trigger { inset: 3.1% auto auto 71.6%; width: 11.6%; height: 6%; }
+    .trial-trigger { inset: 3.1% auto auto 83.8%; width: 10.4%; height: 6%; }
 
     .logout-trigger {
       background: #000;
@@ -113,10 +103,10 @@
       color: #9aa0a6;
       cursor: pointer;
       font: 400 clamp(8px, 1.05vw, 15px) 'DM Sans', sans-serif;
-      inset: 3.1% auto auto 61%;
+      inset: 3.1% auto auto 60.5%;
       padding: 0;
       position: absolute;
-      width: 10%;
+      width: 10.4%;
       height: 6%;
       z-index: 1;
     }
@@ -349,10 +339,14 @@
   <main class="page">
     <div class="home-canvas">
       <img src="assets/ACCUEIL_00.png" alt="KaronlineLive">
+      <button id="about-trigger" class="about-trigger" type="button" data-open-dialog="about-dialog" aria-label="À propos de KaronlineLive"></button>
       <button id="catalogue-trigger" class="catalogue-trigger" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog" aria-label="Ouvrir le catalogue de chansons"></button>
-      <button id="register-trigger" class="register-trigger" type="button" data-open-auth="register-dialog" aria-label="S'enregistrer"></button>
+      <button id="bundle-trigger" class="bundle-trigger" type="button" data-open-dialog="bundle-dialog" aria-label="Découvrir l'offre bundle"></button>
+      <button id="register-trigger" class="register-trigger" type="button" data-open-auth="register-dialog" aria-label="S'abonner"></button>
       <button id="login-trigger" class="login-trigger" type="button" data-open-auth="login-dialog" data-auth="guest" aria-label="Se connecter"></button>
-      <button id="logout-trigger" class="logout-trigger" type="button" data-auth="member" data-logout>Se déconnecter</button>
+      <button id="logout-trigger" class="logout-trigger" type="button" data-auth="member" data-logout aria-label="Se déconnecter">Se déconnecter</button>
+      <button id="download-nav-trigger" class="download-nav-trigger" type="button" aria-label="Téléchargements"></button>
+      <button id="trial-trigger" class="trial-trigger" type="button" data-open-dialog="trial-dialog" aria-label="Essai gratuit"></button>
       <span class="account-email-flashy" data-auth="member" data-account-email></span>
       <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
     </div>
@@ -375,6 +369,50 @@
       <li><strong>Solo ou groupe</strong>Parfait pour chanteurs solo, duos ou groupes.</li>
     </ul>
   </div>
+  <dialog id="about-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="about-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>À propos</h2>
+    <p style="color: #d8dee5; font-size: 14px; margin-bottom: 16px;">
+      KaronlineLive est la solution moderne de karaoké &amp; animation en ligne pour soirées, événements, établissements et passionnés.
+    </p>
+    <p style="color: #9aa9b7; font-size: 13px; margin-bottom: 20px;">
+      Profitez de notre catalogue interactif, gérez vos sessions en direct avec KaronlineBox et créez des moments d'animation inoubliables.
+    </p>
+    <div class="request-actions">
+      <button class="button button-primary" type="button" data-close-dialog="about-dialog">Fermer</button>
+    </div>
+  </dialog>
+  <dialog id="bundle-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="bundle-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>Offre bundle</h2>
+    <p style="color: #d8dee5; font-size: 14px; margin-bottom: 16px;">
+      Découvrez nos formules combinées : système d'animation complet, gestion multi-écrans et accès illimité au catalogue de karaoké.
+    </p>
+    <p style="color: #9aa9b7; font-size: 13px; margin-bottom: 20px;">
+      Idéal pour les animateurs pro et les établissements souhaitant une solution intégrée clef en main.
+    </p>
+    <div class="request-actions">
+      <button class="button button-primary" type="button" data-open-auth="register-dialog" data-close-dialog="bundle-dialog">S'abonner maintenant</button>
+      <button class="button button-primary" type="button" data-close-dialog="bundle-dialog">Fermer</button>
+    </div>
+  </dialog>
+  <dialog id="trial-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="trial-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>Essai gratuit</h2>
+    <p style="color: #d8dee5; font-size: 14px; margin-bottom: 16px;">
+      Testez KaronlineLive gratuitement et explorez toutes les fonctionnalités de notre application karaoké !
+    </p>
+    <p style="color: #9aa9b7; font-size: 13px; margin-bottom: 20px;">
+      Création de compte instantanée sans engagement et sans carte bancaire requise.
+    </p>
+    <div class="request-actions">
+      <button class="button button-primary" type="button" data-open-auth="register-dialog" data-close-dialog="trial-dialog">Démarrer l'essai gratuit</button>
+      <button class="button button-primary" type="button" data-close-dialog="trial-dialog">Annuler</button>
+    </div>
+  </dialog>
   <dialog id="catalogue-dialog" class="catalogue-dialog" aria-labelledby="catalogue-dialog-title">
     <div class="catalogue-dialog-header">
       <div>

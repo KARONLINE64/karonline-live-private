@@ -3,8 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>KaronlineLive</title>
-  <link rel="stylesheet" href="css/styles.css?v=3">
+  <link rel="stylesheet" href="css/styles.css?v=4">
   <style>
     html, body {
       margin: 0;
@@ -46,28 +49,97 @@
       -webkit-user-drag: none;
     }
 
-    .catalogue-trigger {
+    .about-trigger,
+    .catalogue-trigger,
+    .bundle-trigger,
+    .register-trigger,
+    .login-trigger,
+    .download-nav-trigger,
+    .trial-trigger {
       background: transparent;
       border: 0;
       cursor: pointer;
-      inset: 3.1% auto auto 30.9%;
       padding: 0;
       position: absolute;
       z-index: 1;
-      width: 8.8%;
-      height: 6%;
+      border-radius: 6px;
+      transition: background 0.15s, outline 0.15s;
     }
 
-    .catalogue-trigger:focus-visible {
+    .about-trigger:hover,
+    .catalogue-trigger:hover,
+    .bundle-trigger:hover,
+    .register-trigger:hover,
+    .login-trigger:hover,
+    .download-nav-trigger:hover,
+    .trial-trigger:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .about-trigger:focus-visible,
+    .catalogue-trigger:focus-visible,
+    .bundle-trigger:focus-visible,
+    .register-trigger:focus-visible,
+    .login-trigger:focus-visible,
+    .download-nav-trigger:focus-visible,
+    .trial-trigger:focus-visible {
       border: 2px solid #fff;
-      border-radius: 5px;
       outline: 2px solid #145cff;
       outline-offset: 2px;
     }
 
+    .about-trigger { inset: 3.1% auto auto 22.3%; width: 7.8%; height: 6%; }
+    .catalogue-trigger { inset: 3.1% auto auto 30.8%; width: 8.8%; height: 6%; }
+    .bundle-trigger { inset: 3.1% auto auto 40.3%; width: 9.3%; height: 6%; }
+    .register-trigger { inset: 3.1% auto auto 50.4%; width: 9.4%; height: 6%; }
+    .login-trigger { inset: 3.1% auto auto 60.5%; width: 10.4%; height: 6%; }
+    .download-nav-trigger { inset: 3.1% auto auto 71.6%; width: 11.6%; height: 6%; }
+    .trial-trigger { inset: 3.1% auto auto 83.8%; width: 10.4%; height: 6%; }
+
+    .logout-trigger {
+      background: #000;
+      border: 1px solid #20323b;
+      border-radius: 5px;
+      color: #9aa0a6;
+      cursor: pointer;
+      font: 400 clamp(8px, 1.05vw, 15px) 'DM Sans', sans-serif;
+      inset: 3.1% auto auto 60.5%;
+      padding: 0;
+      position: absolute;
+      width: 10.4%;
+      height: 6%;
+      z-index: 1;
+    }
+
+    .logout-trigger:hover {
+      background: #0b1821;
+      border-color: #387a90;
+    }
+
+    .logout-trigger:focus-visible {
+      outline: 2px solid #145cff;
+      outline-offset: 2px;
+    }
+
+    .account-email-flashy {
+      color: #00ffe1;
+      font: 700 clamp(8px, 1.05vw, 15px) 'DM Sans', sans-serif;
+      text-align: center;
+      text-shadow: 0 0 6px #00ffe1, 0 0 12px #00c2ff;
+      inset: 9.3% auto auto 61%;
+      padding: 0;
+      position: absolute;
+      width: 10%;
+      z-index: 1;
+    }
+
     .download-trigger {
+      background: transparent;
+      border: 0;
+      cursor: pointer;
       border-radius: 8px;
       inset: 77.5% auto auto 1.6%;
+      padding: 0;
       position: absolute;
       z-index: 1;
       width: 24%;
@@ -152,22 +224,203 @@
         font-size: 34px;
       }
     }
+
+    /* Page d'accueil mobile : remplace l'image desktop par une mise en page reelle */
+    .mobile-home {
+      display: none;
+    }
+
+    @media (max-width: 640px) {
+      html, body {
+        overflow: auto;
+        height: auto;
+      }
+
+      .page {
+        display: none;
+      }
+
+      .mobile-home {
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+        padding: 28px 20px 40px;
+        gap: 26px;
+        background: radial-gradient(ellipse at 75% 0%, rgba(0,112,255,.18), transparent 45%), #030507;
+        color: var(--white, #f4f7fb);
+        font-family: var(--font-body, 'DM Sans', sans-serif);
+      }
+
+      .mobile-home .brand-row {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+        font-size: 32px;
+        font-weight: 600;
+      }
+
+      .mobile-home .brand-row span {
+        color: var(--blue, #145cff);
+      }
+
+      .mobile-home .tagline {
+        color: #e80055;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        margin-top: -18px;
+      }
+
+      .mobile-home .pitch {
+        font-size: 16px;
+        color: #d8dee5;
+        margin: 0;
+      }
+
+      .mobile-home h1 {
+        font-family: var(--font-display, 'Barlow Condensed', sans-serif);
+        font-size: 44px;
+        font-weight: 600;
+        line-height: .95;
+        margin: 0;
+      }
+
+      .mobile-home h1 span {
+        color: var(--blue, #145cff);
+      }
+
+      .mobile-home .mobile-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .mobile-home .mobile-actions .button {
+        width: 100%;
+        font-size: 16px;
+        height: 52px;
+      }
+
+      .mobile-home .mobile-features {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+
+      .mobile-home .mobile-features li {
+        border: 1px solid var(--line, #20323b);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 12px;
+        color: #d8dee5;
+      }
+
+      .mobile-home .mobile-features li strong {
+        display: block;
+        color: #fff;
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+
+      #download-status {
+        position: static;
+        margin-top: 12px;
+        max-width: none;
+      }
+    }
   </style>
 </head>
 <body>
   <main class="page">
     <div class="home-canvas">
       <img src="assets/ACCUEIL_00.png" alt="KaronlineLive">
+      <button id="about-trigger" class="about-trigger" type="button" data-open-dialog="about-dialog" aria-label="À propos de KaronlineLive"></button>
       <button id="catalogue-trigger" class="catalogue-trigger" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog" aria-label="Ouvrir le catalogue de chansons"></button>
-      <a class="download-trigger" href="downloads/KaronlineBox_V90_Setup_20260826_SESSIONFIX.exe" download aria-label="Télécharger KaronlineBox pour Windows" title="Télécharger KaronlineBox pour Windows"></a>
+      <button id="bundle-trigger" class="bundle-trigger" type="button" data-open-dialog="bundle-dialog" aria-label="Découvrir l'offre bundle"></button>
+      <button id="register-trigger" class="register-trigger" type="button" data-open-auth="register-dialog" aria-label="S'abonner"></button>
+      <button id="login-trigger" class="login-trigger" type="button" data-open-auth="login-dialog" data-auth="guest" aria-label="Se connecter"></button>
+      <button id="logout-trigger" class="logout-trigger" type="button" data-auth="member" data-logout aria-label="Se déconnecter">Se déconnecter</button>
+      <button id="download-nav-trigger" class="download-nav-trigger" type="button" aria-label="Téléchargements"></button>
+      <button id="trial-trigger" class="trial-trigger" type="button" data-open-dialog="trial-dialog" aria-label="Essai gratuit"></button>
+      <span class="account-email-flashy" data-auth="member" data-account-email></span>
+      <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
     </div>
     <div id="download-status" class="download-status" aria-live="polite"></div>
   </main>
+  <div class="mobile-home">
+    <div>
+      <p class="brand-row">Karonline<span>Live</span></p>
+      <p class="tagline">Le site de karaoké &amp; animation</p>
+    </div>
+    <p class="pitch">Une nouvelle façon de vivre le karaoké</p>
+    <h1>Karonline<span>Box</span></h1>
+    <div class="mobile-actions">
+      <button id="catalogue-trigger-mobile" class="button button-primary" type="button" aria-haspopup="dialog" aria-controls="catalogue-dialog">Participer</button>
+    </div>
+    <ul class="mobile-features">
+      <li><strong>Karaoké pro</strong>Gestion complète des chansons, tonalités, favoris et file d'attente.</li>
+      <li><strong>Double écran</strong>Écran KJ + écran public indépendants.</li>
+      <li><strong>Mode KJ auto</strong>Enchaînement automatique avec break configurable.</li>
+      <li><strong>Solo ou groupe</strong>Parfait pour chanteurs solo, duos ou groupes.</li>
+    </ul>
+  </div>
+  <dialog id="about-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="about-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>À propos</h2>
+    <p style="color: #d8dee5; font-size: 14px; margin-bottom: 16px;">
+      KaronlineLive est la solution moderne de karaoké &amp; animation en ligne pour soirées, événements, établissements et passionnés.
+    </p>
+    <p style="color: #9aa9b7; font-size: 13px; margin-bottom: 20px;">
+      Profitez de notre catalogue interactif, gérez vos sessions en direct avec KaronlineBox et créez des moments d'animation inoubliables.
+    </p>
+    <div class="request-actions">
+      <button class="button button-primary" type="button" data-close-dialog="about-dialog">Fermer</button>
+    </div>
+  </dialog>
+  <dialog id="bundle-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="bundle-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>Offre bundle</h2>
+    <p style="color: #d8dee5; font-size: 14px; margin-bottom: 16px;">
+      Découvrez nos formules combinées : système d'animation complet, gestion multi-écrans et accès illimité au catalogue de karaoké.
+    </p>
+    <p style="color: #9aa9b7; font-size: 13px; margin-bottom: 20px;">
+      Idéal pour les animateurs pro et les établissements souhaitant une solution intégrée clef en main.
+    </p>
+    <div class="request-actions">
+      <button class="button button-primary" type="button" data-open-auth="register-dialog" data-close-dialog="bundle-dialog">S'abonner maintenant</button>
+      <button class="button button-primary" type="button" data-close-dialog="bundle-dialog">Fermer</button>
+    </div>
+  </dialog>
+  <dialog id="trial-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="trial-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>Essai gratuit</h2>
+    <p style="color: #d8dee5; font-size: 14px; margin-bottom: 16px;">
+      Testez KaronlineLive gratuitement et explorez toutes les fonctionnalités de notre application karaoké !
+    </p>
+    <p style="color: #9aa9b7; font-size: 13px; margin-bottom: 20px;">
+      Création de compte instantanée sans engagement et sans carte bancaire requise.
+    </p>
+    <div class="request-actions">
+      <button class="button button-primary" type="button" data-open-auth="register-dialog" data-close-dialog="trial-dialog">Démarrer l'essai gratuit</button>
+      <button class="button button-primary" type="button" data-close-dialog="trial-dialog">Annuler</button>
+    </div>
+  </dialog>
   <dialog id="catalogue-dialog" class="catalogue-dialog" aria-labelledby="catalogue-dialog-title">
     <div class="catalogue-dialog-header">
       <div>
         <p class="eyebrow">KaronlineLive / Catalogue</p>
         <h2 id="catalogue-dialog-title">Choisissez votre chanson</h2>
+        <p class="host-status"></p>
+        <button class="host-change-link" type="button" data-change-host>Changer d'hôte</button>
+        <button class="host-change-link host-disconnect-link" type="button" data-disconnect-host>Se déconnecter de la session</button>
       </div>
       <button class="dialog-close" type="button" data-close-dialog="catalogue-dialog" aria-label="Fermer le catalogue">×</button>
     </div>
@@ -203,7 +456,94 @@
       <output id="request-result" class="request-result" aria-live="polite"></output>
     </form>
   </dialog>
-  <script src="js/config.js?v=6"></script>
-  <script src="js/app.js?v=6"></script>
+  <dialog id="host-connect-dialog" class="host-connect-dialog">
+    <form id="host-connect-form">
+      <button class="dialog-close" type="button" data-close-dialog="host-connect-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">Connexion</p>
+      <h2>Rejoindre un hôte KaronlineBox</h2>
+      <p>Demandez à votre animateur le <strong>nom de session</strong> qu'il a choisi (ex. soiree-marc), puis tapez-le ici.</p>
+      <label for="host-url-input">Nom de session</label>
+      <input id="host-url-input" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="soiree-marc" required autocomplete="off">
+      <p class="host-connect-error" aria-live="polite"></p>
+      <button class="button button-primary" type="submit">Se connecter</button>
+    </form>
+  </dialog>
+  <dialog id="register-dialog" class="auth-dialog">
+    <form id="register-form">
+      <button class="dialog-close" type="button" data-close-dialog="register-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">KaronlineLive</p><h2>S'enregistrer</h2>
+      <label for="reg-email">Adresse mail (identifiant)</label>
+      <input id="reg-email" name="email" type="email" required autocomplete="email" placeholder="vous@exemple.com">
+      <label for="reg-password">Mot de passe</label>
+      <div class="password-field">
+        <input id="reg-password" name="password" type="password" required minlength="8" autocomplete="new-password" placeholder="8 caractères minimum">
+        <button class="password-toggle" type="button" data-password-toggle="reg-password" aria-label="Afficher le mot de passe" aria-pressed="false">&#128065;</button>
+      </div>
+      <label for="reg-card">Carte bancaire <small>(optionnel)</small></label>
+      <input id="reg-card" name="card" type="text" inputmode="numeric" autocomplete="cc-number" placeholder="Optionnel pendant la phase de test">
+      <p class="auth-note">Vos futures sessions KaronlineBox seront rattachées à ce compte pour la facturation. Phase tests amis/famille : aucun prélèvement, seuls les 4 derniers chiffres sont mémorisés.</p>
+      <div id="register-verify-box" hidden>
+        <label for="reg-verification-code">Code de vérification</label>
+        <input id="reg-verification-code" name="verification_code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="123456">
+        <div class="request-actions">
+          <button id="register-verify-button" class="button button-primary" type="button">Vérifier mon email</button>
+          <button id="register-resend-button" class="button button-primary" type="button">Renvoyer le code</button>
+        </div>
+      </div>
+      <output id="register-result" class="request-result" aria-live="polite"></output>
+      <div class="request-actions">
+        <button class="button button-primary submit-button" type="submit">Créer mon compte</button>
+        <button class="button button-primary" type="button" data-close-dialog="register-dialog">Annuler</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="login-dialog" class="auth-dialog">
+    <form id="login-form">
+      <button class="dialog-close" type="button" data-close-dialog="login-dialog" aria-label="Fermer">×</button>
+      <p class="eyebrow">KaronlineLive</p><h2>Se connecter</h2>
+      <label for="login-email">Adresse mail</label>
+      <input id="login-email" name="email" type="email" required autocomplete="username" placeholder="vous@exemple.com">
+      <label for="login-password">Mot de passe</label>
+      <div class="password-field">
+        <input id="login-password" name="password" type="password" required autocomplete="current-password" placeholder="••••••••">
+        <button class="password-toggle" type="button" data-password-toggle="login-password" aria-label="Afficher le mot de passe" aria-pressed="false">&#128065;</button>
+      </div>
+      <output id="login-result" class="request-result" aria-live="polite"></output>
+      <button id="forgot-password-trigger" type="button" class="host-change-link">Email et/ou mot de passe oublié ?</button>
+      <div class="request-actions">
+        <button class="button button-primary submit-button" type="submit">Connexion</button>
+        <button class="button button-primary" type="button" data-close-dialog="login-dialog">Annuler</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="forgot-password-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="forgot-password-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p><h2>Récupérer mon compte</h2>
+    <div id="forgot-request-box">
+      <form id="forgot-password-form">
+        <label for="forgot-email">Adresse mail</label>
+        <input id="forgot-email" name="email" type="email" required placeholder="vous@exemple.com">
+        <div class="request-actions">
+          <button class="button button-primary submit-button" type="submit">Envoyer le code</button>
+        </div>
+      </form>
+    </div>
+    <div id="forgot-reset-box" hidden>
+      <form id="forgot-reset-form">
+        <input id="forgot-reset-email" type="hidden">
+        <label for="forgot-code">Code reçu par e-mail</label>
+        <input id="forgot-code" type="text" inputmode="numeric" required placeholder="123456">
+        <label for="forgot-new-password">Nouveau mot de passe</label>
+        <input id="forgot-new-password" type="password" required minlength="8" placeholder="8 caractères minimum">
+        <div class="request-actions">
+          <button class="button button-primary submit-button" type="submit">Valider</button>
+        </div>
+      </form>
+    </div>
+    <output id="forgot-result" class="request-result" aria-live="polite"></output>
+  </dialog>
+  <script src="js/config.js?v=12"></script>
+  <script src="js/app.js?v=12"></script>
+  <script src="js/auth.js?v=6"></script>
 </body>
 </html>
