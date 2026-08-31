@@ -7,7 +7,7 @@ from PyInstaller.utils.hooks import collect_submodules
 
 binaries = []
 datas = []
-hiddenimports = collect_submodules("core") + [
+hiddenimports = collect_submodules("core") + collect_submodules("ui") + [
     "PySide6.QtCore",
     "PySide6.QtGui",
     "PySide6.QtWidgets",

@@ -31,7 +31,9 @@ from core.lan_config import (
 )
 from core.lan_request_receiver import LanRequestReceiver
 from core.central_auth import CentralAuthClient
+from core.duo_manager import DuoSessionManager
 from ui.auth_dialog import AuthDialog
+from ui.duo_widget import DuoVideoOverlay
 
 
 def default_media_dir() -> Path:
@@ -84,6 +86,14 @@ class MainWindow(QMainWindow):
         self.central_auth = CentralAuthClient(self.settings)
         self._central_session_ok = False
         self._active_relay_session = None
+
+        # KARONLINEBOX DUO Manager & Overlay
+        self.duo_manager = DuoSessionManager(self.central_auth)
+        self.duo_overlay = None
+        self.duo_manager.session_created.connect(self._on_duo_session_created)
+        self.duo_manager.guest_connected.connect(self._on_duo_guest_connected)
+        self.duo_manager.guest_disconnected.connect(self._on_duo_guest_disconnected)
+        self.duo_manager.session_closed.connect(self._on_duo_session_closed)
 
         # V45 — actual RÉGLAGES runtime state.
         self.public_bg_files = []
@@ -218,6 +228,17 @@ class MainWindow(QMainWindow):
                 self.progress.setValue(position)
         else:
             self.progress.setRange(0, 0)
+
+        # Synchro Master Clock DUO
+        if hasattr(self, "duo_manager") and self.duo_manager and self.duo_manager.active_code:
+            song = self.queue.current
+            self.duo_manager.send_sync_state(
+                song.title if song else "",
+                song.singer if song else "",
+                position,
+                duration,
+                bool(self.gst_player and self.audio_owner == "karaoke")
+            )
 
 
     def _schedule_next_warning(self):
@@ -952,13 +973,14 @@ class MainWindow(QMainWindow):
 
         nav.addStretch()
 
+        self.duo_btn = QPushButton("🎙  DUO")
         self.demands_btn = QPushButton("DEMANDES")
         self.queue_nav_btn = QPushButton("☷  FILE D'ATTENTE")
         self.favorites_btn = QPushButton("☆  FAVORIS")
         self.settings_btn = QPushButton("⚙  RÉGLAGES")
 
         for b in [
-            self.demands_btn, self.queue_nav_btn,
+            self.duo_btn, self.demands_btn, self.queue_nav_btn,
             self.favorites_btn, self.settings_btn
         ]:
             b.setObjectName("nav")
@@ -973,6 +995,9 @@ class MainWindow(QMainWindow):
             self.demands_indicator
         )
 
+        self.duo_btn.clicked.connect(
+            lambda: self.show_main_view("duo")
+        )
         self.demands_btn.clicked.connect(
             lambda: self.show_main_view("demands")
         )
@@ -1481,10 +1506,83 @@ class MainWindow(QMainWindow):
         self.group_favorites_list.itemClicked.connect(self.request_group_favorite)
         self.favorites.changed.connect(self.refresh_favorites)
 
+        # PAGE DUO
+        duo_page = QWidget()
+        duo_layout = QVBoxLayout(duo_page)
+        duo_layout.setContentsMargins(0, 0, 0, 0)
+
+        duo_box = QGroupBox("KARONLINEBOX DUO — CHANTEZ ENSEMBLE À DISTANCE")
+        duo_box_layout = QVBoxLayout(duo_box)
+
+        duo_intro = QLabel(
+            "Invitez un ami ou votre famille à chanter avec vous en direct.\n"
+            "Chantez ensemble comme si vous étiez dans la même pièce !"
+        )
+        duo_intro.setStyleSheet("color:#aeb7bf;font-size:13px;")
+        duo_intro.setWordWrap(True)
+        duo_box_layout.addWidget(duo_intro)
+
+        duo_form = QFormLayout()
+        duo_form.setSpacing(12)
+
+        self.duo_code_label = QLabel("○ Aucune session DUO active")
+        self.duo_code_label.setStyleSheet("color:#00c8ff;font-size:16px;font-weight:700;")
+        duo_form.addRow("CODE DE SESSION", self.duo_code_label)
+
+        self.duo_guest_label = QLabel("○ Aucun invité connecté")
+        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:13px;")
+        duo_form.addRow("STATUT INVITÉ", self.duo_guest_label)
+
+        duo_box_layout.addLayout(duo_form)
+
+        duo_buttons = QHBoxLayout()
+        self.duo_start_btn = QPushButton("▶ DÉMARRER UNE SESSION DUO")
+        self.duo_start_btn.setStyleSheet(
+            "background:linear-gradient(110deg,#124de5,#194fff);"
+            "border:0;border-radius:5px;padding:10px 18px;"
+            "color:#fff;font-weight:700;font-size:14px;"
+        )
+        self.duo_start_btn.clicked.connect(self._start_duo_session_action)
+
+        self.duo_stop_btn = QPushButton("✕ FERMER LA SESSION DUO")
+        self.duo_stop_btn.setStyleSheet(
+            "background:#3a151b;border:1px solid #e80055;border-radius:5px;"
+            "padding:10px 18px;color:#ff6b6b;font-weight:700;font-size:14px;"
+        )
+        self.duo_stop_btn.setEnabled(False)
+        self.duo_stop_btn.clicked.connect(self._stop_duo_session_action)
+
+        duo_buttons.addWidget(self.duo_start_btn)
+        duo_buttons.addWidget(self.duo_stop_btn)
+        duo_buttons.addStretch()
+        duo_box_layout.addLayout(duo_buttons)
+
+        self.duo_qr_box = QWidget()
+        qr_layout = QVBoxLayout(self.duo_qr_box)
+        self.duo_qr_label = QLabel()
+        self.duo_qr_label.setAlignment(Qt.AlignCenter)
+        self.duo_instructions = QLabel(
+            "📱 Scannez le QR Code avec un smartphone pour chanter immédiatement à deux !"
+        )
+        self.duo_instructions.setAlignment(Qt.AlignCenter)
+        self.duo_instructions.setStyleSheet("color:#00c8ff;font-size:12px;font-weight:600;")
+        qr_layout.addWidget(self.duo_qr_label)
+        qr_layout.addWidget(self.duo_instructions)
+        self.duo_qr_box.hide()
+        duo_box_layout.addWidget(self.duo_qr_box)
+
+        self.duo_overlay_btn = QPushButton("📹 AFFICHER / MASQUER LA WEBCAM INVITÉ")
+        self.duo_overlay_btn.clicked.connect(self._toggle_duo_overlay)
+        duo_box_layout.addWidget(self.duo_overlay_btn)
+
+        duo_box_layout.addStretch()
+        duo_layout.addWidget(duo_box)
+
         self.queue_area_stack.addWidget(queue_page)
         self.queue_area_stack.addWidget(demands_page)
         self.queue_area_stack.addWidget(favorites_page)
         self.queue_area_stack.addWidget(self.settings_page)
+        self.queue_area_stack.addWidget(duo_page)
 
         # Start on the real queue.
         self.queue_area_stack.setCurrentIndex(0)
@@ -2205,7 +2303,9 @@ class MainWindow(QMainWindow):
         self.live_box.setVisible(view == "queue")
         self.next_box.setVisible(view == "queue")
 
-        if view == "demands":
+        if view == "duo":
+            self.queue_area_stack.setCurrentIndex(4)
+        elif view == "demands":
             self.queue_area_stack.setCurrentIndex(1)
             self.refresh_requests()
         elif view == "queue":
@@ -2425,6 +2525,90 @@ class MainWindow(QMainWindow):
         self.refresh_requests()
         self.update_demands_indicator()
         self.set_status(f"● Demande supprimée : {removed.get('title', '')}", True)
+
+    # ------------------------------------------------------------------
+    # KARONLINEBOX DUO — Méthodes et événements de session DUO
+    # ------------------------------------------------------------------
+    def _start_duo_session_action(self):
+        session_name = getattr(self, "_active_relay_session", None)
+        ok, code, qr_url = self.duo_manager.create_session(session_name)
+        if ok:
+            self.duo_code_label.setText(f"🟢 {code}")
+            self.duo_start_btn.setEnabled(False)
+            self.duo_stop_btn.setEnabled(True)
+            self.set_status(f"● Session DUO {code} démarrée", True)
+            threading.Thread(target=self._fetch_duo_qr_pixmap, args=(qr_url,), daemon=True).start()
+
+    def _fetch_duo_qr_pixmap(self, qr_url: str):
+        try:
+            req = urllib.request.Request(qr_url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = resp.read()
+            pixmap = QPixmap()
+            pixmap.loadFromData(data)
+            QTimer.singleShot(0, lambda: self._apply_duo_qr_pixmap(pixmap))
+        except Exception:
+            pass
+
+    def _apply_duo_qr_pixmap(self, pixmap: QPixmap):
+        if not pixmap.isNull():
+            self.duo_qr_label.setPixmap(pixmap.scaled(180, 180, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+            self.duo_qr_box.show()
+
+    def _stop_duo_session_action(self):
+        self.duo_manager.close_session()
+        self.duo_code_label.setText("○ Aucune session DUO active")
+        self.duo_guest_label.setText("○ Aucun invité connecté")
+        self.duo_qr_box.hide()
+        self.duo_start_btn.setEnabled(True)
+        self.duo_stop_btn.setEnabled(False)
+        if self.duo_overlay:
+            self.duo_overlay.close()
+            self.duo_overlay = None
+        self.set_status("● Session DUO fermée", True)
+
+    def _on_duo_session_created(self, code: str, qr_url: str):
+        self.duo_code_label.setText(f"🟢 {code}")
+
+    def _on_duo_guest_connected(self, guest_info: dict):
+        guest_name = guest_info.get("name", "Invité")
+        self.duo_guest_label.setText(f"🟢 Connecté : {guest_name}")
+        self.duo_guest_label.setStyleSheet("color:#4ade80;font-size:13px;font-weight:700;")
+        self.set_status(f"● DUO : {guest_name} a rejoint la session !", True)
+        self._ensure_duo_overlay(guest_name)
+
+    def _on_duo_guest_disconnected(self):
+        self.duo_guest_label.setText("○ Aucun invité connecté")
+        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:13px;")
+        self.set_status("● DUO : L'invité s'est déconnecté", False)
+        if self.duo_overlay:
+            self.duo_overlay.set_connected_status(False)
+
+    def _on_duo_session_closed(self):
+        self.duo_code_label.setText("○ Aucune session DUO active")
+        self.duo_guest_label.setText("○ Aucun invité connecté")
+
+    def _ensure_duo_overlay(self, guest_name: str = "Invité"):
+        if not self.duo_overlay:
+            self.duo_overlay = DuoVideoOverlay(self)
+            self.duo_overlay.set_guest_name(guest_name)
+            self.duo_overlay.set_connected_status(True)
+            self.duo_overlay.show()
+            geo = self.geometry()
+            self.duo_overlay.move(geo.right() - 340, geo.top() + 60)
+        else:
+            self.duo_overlay.set_guest_name(guest_name)
+            self.duo_overlay.set_connected_status(True)
+            self.duo_overlay.show()
+
+    def _toggle_duo_overlay(self):
+        if not self.duo_overlay:
+            self._ensure_duo_overlay()
+        else:
+            if self.duo_overlay.isVisible():
+                self.duo_overlay.hide()
+            else:
+                self.duo_overlay.show()
 
     def start_public_session(self):
         """Enregistre le nom de session et démarre le relais central (aucun
