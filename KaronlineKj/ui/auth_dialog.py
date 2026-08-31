@@ -22,7 +22,7 @@ class AuthDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Compte KaronlineLive")
         self.setModal(True)
-        self.setMinimumWidth(440)
+        self.setMinimumWidth(400)
 
         self.result_ok = False
         self.result_token = ""
@@ -34,18 +34,21 @@ class AuthDialog(QDialog):
         self._poll_timer = None
 
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(6)
+
         intro = QLabel(
             "Connectez-vous pour consulter le catalogue et démarrer une "
             "session. Favoris et réglages restent utilisables sans connexion."
         )
         intro.setWordWrap(True)
-        intro.setStyleSheet("color:#9aa9b7;font-size:13px;")
+        intro.setStyleSheet("color:#9aa9b7;font-size:12px;")
         layout.addWidget(intro)
 
         if notice:
             banner = QLabel(notice)
             banner.setWordWrap(True)
-            banner.setStyleSheet("color:#00c8ff;font-size:13px;font-weight:600;")
+            banner.setStyleSheet("color:#00c8ff;font-size:12px;font-weight:600;")
             layout.addWidget(banner)
 
         self.stack = QStackedWidget()
@@ -58,7 +61,7 @@ class AuthDialog(QDialog):
         self.feedback = QLabel("")
         self.feedback.setWordWrap(True)
         self.feedback.setStyleSheet(
-            "color:#ff6b6b;font-size:13px;min-height:32px;"
+            "color:#ff6b6b;font-size:12px;min-height:16px;"
         )
         layout.addWidget(self.feedback)
 
@@ -69,10 +72,9 @@ class AuthDialog(QDialog):
         self.submit_btn.setDefault(True)
         self.submit_btn.setStyleSheet(
             "background:linear-gradient(110deg,#124de5,#194fff);"
-            "border:0;border-radius:5px;padding:11px 24px;"
+            "border:0;border-radius:5px;padding:8px 20px;"
             "color:#fff;font-weight:600;"
         )
-        self.submit_btn.clicked.connect(self.submit)
         buttons.addStretch(1)
         buttons.addWidget(self.cancel_btn)
         buttons.addWidget(self.submit_btn)
@@ -84,7 +86,8 @@ class AuthDialog(QDialog):
     def _build_page(self, is_register: bool):
         page = QWidget(self)
         form = QFormLayout(page)
-        form.setSpacing(10)
+        form.setContentsMargins(0, 2, 0, 2)
+        form.setSpacing(6)
 
         email_edit = QLineEdit()
         email_edit.setPlaceholderText("vous@exemple.com")
@@ -128,6 +131,7 @@ class AuthDialog(QDialog):
             else "Connexion — KaronlineLive"
         )
         self.feedback.setText("")
+        QTimer.singleShot(0, self.adjustSize)
 
     def toggle_mode(self) -> None:
         self._apply_mode(

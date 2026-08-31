@@ -744,6 +744,11 @@ class MainWindow(QMainWindow):
     def _end_auto_break(self):
         if not self.break_active:
             return
+        # In KJ Auto mode: if no songs are queued, do NOT stop break music after 30s.
+        # Keep break music playing continuously until a new song is queued/ready.
+        if self.kj_auto_on.isChecked() and not self.queue.items:
+            self.break_auto_pending = False
+            return
         self.break_active = False
         self.break_auto_pending = False
         self._fade_break_to_silence(callback=self._play_next_after_break)
@@ -1414,6 +1419,7 @@ class MainWindow(QMainWindow):
         self.requests_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.requests_table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.requests_table.verticalHeader().setVisible(False)
+        self.requests_table.verticalHeader().setDefaultSectionSize(44)
         self.requests_table.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeToContents
         )
@@ -2280,6 +2286,7 @@ class MainWindow(QMainWindow):
 
         for row, request in enumerate(self.requests):
             self.requests_table.insertRow(row)
+            self.requests_table.setRowHeight(row, 44)
 
             for col, value in enumerate([
                 request["singer"],
@@ -2366,14 +2373,29 @@ class MainWindow(QMainWindow):
             existing_btn.setEnabled(True)
             new_btn.setEnabled(True)
 
+            action_btn_common = (
+                "QPushButton{"
+                "font-size:13px;"
+                "font-weight:600;"
+                "padding:5px 10px;"
+                "border-radius:4px;"
+                "min-height:26px;"
+                "}"
+            )
+            existing_btn.setStyleSheet(
+                action_btn_common +
+                "QPushButton{background:#0b1c28;border:1px solid #1c5270;color:#8ccbfa;}"
+                "QPushButton:hover{background:#13344b;border-color:#2a7cb0;}"
+            )
             new_btn.setStyleSheet(
-                "QPushButton{border:1px solid #00a7ff;"
-                "color:#00a7ff;font-weight:700;}"
+                action_btn_common +
+                "QPushButton{background:#092536;border:1px solid #00a7ff;color:#00a7ff;font-weight:700;}"
+                "QPushButton:hover{background:#103c57;}"
             )
             delete_btn.setStyleSheet(
-                "QPushButton{border:1px solid #7a3030;"
-                "color:#ff6b6b;font-weight:700;}"
-                "QPushButton:hover{background:#251719;}"
+                action_btn_common +
+                "QPushButton{background:#201012;border:1px solid #7a3030;color:#ff6b6b;font-weight:700;}"
+                "QPushButton:hover{background:#381619;}"
             )
 
             action_layout.addWidget(existing_btn)
@@ -3681,6 +3703,15 @@ class MainWindow(QMainWindow):
 
         if 0 <= selected < self.queue_list.rowCount():
             self.queue_list.setCurrentCell(selected, 1)
+
+        # In KJ Auto mode: if break music is playing continuously because the queue was empty,
+        # automatically transition to the newly queued song now that a song is available.
+        if (self.kj_auto_on.isChecked()
+                and self.break_active
+                and not self.break_auto_timer.isActive()
+                and self.queue.items
+                and self.audio_owner != "karaoke"):
+            self._end_auto_break()
 
 
     def show_singer_queue_menu(self, singer):
