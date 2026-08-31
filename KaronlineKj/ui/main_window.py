@@ -2667,18 +2667,6 @@ class MainWindow(QMainWindow):
             )
             return
 
-        if not self._site_session_active():
-            QMessageBox.warning(
-                self, "CONNEXION SITE REQUISE",
-                "Connectez-vous aussi sur karonlinelive.com avec le même"
-                " compte (même e-mail/mot de passe) avant de démarrer une"
-                " session KaronlineBox."
-            )
-            self.set_status(
-                "● Connexion simultanée site + KaronlineBox requise", False
-            )
-            return
-
         name = re.sub(
             r"[^a-z0-9_-]", "-",
             self.session_name_input.text().strip().lower()
