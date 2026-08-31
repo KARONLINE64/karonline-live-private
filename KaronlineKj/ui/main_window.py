@@ -2674,7 +2674,8 @@ class MainWindow(QMainWindow):
     def start_public_session(self):
         """Enregistre le nom de session et démarre le relais central (aucun
         tunnel/port entrant requis : uniquement une connexion sortante).
-        Requiert obligatoirement une authentification valide au compte KaronlineLive du KJ/Hôte."""
+        Requiert obligatoirement une authentification valide au compte KaronlineLive du KJ/Hôte
+        ET la présence d'une connexion simultanée sur le site karonlinelive.com avec le même compte."""
         if not self.ensure_central_login():
             QMessageBox.warning(
                 self,
@@ -2686,6 +2687,21 @@ class MainWindow(QMainWindow):
             )
             self.set_status(
                 "● Connexion au compte requise pour démarrer une session",
+                False,
+            )
+            return
+
+        if not self._site_session_active():
+            QMessageBox.warning(
+                self,
+                "CONNEXION SITE REQUISE",
+                "Pour démarrer votre session KaronlineBox, vous devez d'abord vous connecter\n"
+                "sur karonlinelive.com (navigateur) avec les MÊMES identifiants (e-mail & mot de passe).\n\n"
+                "Cette double authentification garantit le débit de la bonne carte bancaire\n"
+                "et le routage certain des demandes payées depuis les mobiles."
+            )
+            self.set_status(
+                "● Connexion simultanée site + KaronlineBox requise (mêmes identifiants)",
                 False,
             )
             return
