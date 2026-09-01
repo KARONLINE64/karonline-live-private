@@ -94,6 +94,8 @@ class MainWindow(QMainWindow):
         self.duo_manager.guest_connected.connect(self._on_duo_guest_connected)
         self.duo_manager.guest_disconnected.connect(self._on_duo_guest_disconnected)
         self.duo_manager.session_closed.connect(self._on_duo_session_closed)
+        self.duo_manager.guest_frame_received.connect(self._on_duo_guest_frame_received)
+        self.duo_manager.host_frame_received.connect(self._on_duo_host_frame_received)
 
         # V45 — actual RÉGLAGES runtime state.
         self.public_bg_files = []
@@ -2699,6 +2701,14 @@ class MainWindow(QMainWindow):
         self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
         if self.duo_overlay:
             self.duo_overlay.set_connected_status(False)
+
+    def _on_duo_guest_frame_received(self, frame_data: str):
+        if self.duo_overlay and self.duo_manager.is_host:
+            self.duo_overlay.update_frame(frame_data)
+
+    def _on_duo_host_frame_received(self, frame_data: str):
+        if self.duo_overlay and not self.duo_manager.is_host:
+            self.duo_overlay.update_frame(frame_data)
 
     def _toggle_duo_overlay(self):
         if self.duo_overlay:

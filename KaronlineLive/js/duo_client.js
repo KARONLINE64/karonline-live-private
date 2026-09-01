@@ -23,6 +23,7 @@
   let isMicOn = true;
   let isCamOn = true;
   let syncInterval = null;
+  let frameInterval = null;
 
   const CENTRAL_API = typeof CENTRAL_API_BASE !== 'undefined' ? CENTRAL_API_BASE : 'https://api.karonlinelive.com';
 
@@ -48,6 +49,27 @@
   function startDuoSession() {
     registerGuestSession();
     startSyncPolling();
+    startFrameSending();
+  }
+
+  function startFrameSending() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 320;
+    canvas.height = 240;
+    const ctx = canvas.getContext('2d');
+
+    frameInterval = setInterval(() => {
+      if (!localStream || !localVideo || !isCamOn) return;
+      try {
+        ctx.drawImage(localVideo, 0, 0, 320, 240);
+        const frameData = canvas.toDataURL('image/jpeg', 0.45);
+        fetch(`${CENTRAL_API}/duo/frame`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: code, role: 'guest', frame: frameData })
+        }).catch(() => {});
+      } catch (e) {}
+    }, 350);
   }
 
   async function registerGuestSession() {

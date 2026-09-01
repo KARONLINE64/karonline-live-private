@@ -5,7 +5,9 @@ avec contrôles Mute audio/vidéo et intégration visuelle avec KaronlineBox.
 """
 from __future__ import annotations
 
+import base64
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
@@ -123,6 +125,33 @@ class DuoVideoOverlay(QWidget):
 
     def set_guest_name(self, name: str):
         self.avatar_label.setText(f"👤 {name}")
+
+    def update_frame(self, frame_data: str | bytes):
+        if not frame_data or self._video_muted:
+            return
+        try:
+            if isinstance(frame_data, str) and frame_data.startswith("data:image"):
+                base64_str = frame_data.split(",", 1)[-1]
+                raw_bytes = base64.b64decode(base64_str)
+            elif isinstance(frame_data, bytes):
+                raw_bytes = frame_data
+            else:
+                return
+
+            pixmap = QPixmap()
+            if pixmap.loadFromData(raw_bytes):
+                target_size = self.video_surface.size()
+                if target_size.width() > 10 and target_size.height() > 10:
+                    scaled = pixmap.scaled(
+                        target_size,
+                        Qt.KeepAspectRatio,
+                        Qt.SmoothTransformation
+                    )
+                    self.avatar_label.setPixmap(scaled)
+                else:
+                    self.avatar_label.setPixmap(pixmap)
+        except Exception:
+            pass
 
     def set_connected_status(self, connected: bool):
         if connected:

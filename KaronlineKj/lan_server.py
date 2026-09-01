@@ -483,7 +483,7 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"site_active": auth_has_active_token(email, "site")})
             return
 
-        # Endpoint: GET /duo/status - statut d'une session DUO (invité connecté, synchro master clock)
+        # Endpoint: GET /duo/status - statut d'une session DUO (invité connecté, synchro master clock, frames webcam)
         if path == "/duo/status":
             query = urlparse(self.path).query
             params = dict(pair.split("=", 1) for pair in query.split("&") if "=" in pair)
@@ -498,6 +498,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                     "code": code,
                     "guest": entry.get("guest"),
                     "sync": entry.get("sync"),
+                    "guest_frame": entry.get("guest_frame"),
+                    "host_frame": entry.get("host_frame"),
                 })
             return
 
@@ -646,6 +648,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/duo/join":
             self._duo_join()
+            return
+        if self.path == "/duo/frame":
+            self._duo_frame()
             return
         if self.path == "/duo/sync":
             self._duo_sync()
@@ -1038,6 +1043,28 @@ class RequestHandler(BaseHTTPRequestHandler):
             entry["ts"] = time.time()
         print(f"DUO GUEST JOINED = {code} ({guest_name})", flush=True)
         self._send_json(200, {"status": "ok", "code": code})
+
+    def _duo_frame(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+            code = str(payload.get("code", "")).strip().upper()
+            role = str(payload.get("role", "guest")).strip().lower()
+            frame = str(payload.get("frame", "")).strip()
+        except Exception:
+            code, role, frame = "", "guest", ""
+        if code and frame:
+            with _DUO_LOCK:
+                entry = DUO_SESSIONS.get(code)
+                if not entry:
+                    entry = {"code": code, "ts": time.time(), "guest": None, "sync": None}
+                    DUO_SESSIONS[code] = entry
+                if role == "host":
+                    entry["host_frame"] = frame
+                else:
+                    entry["guest_frame"] = frame
+                entry["ts"] = time.time()
+        self._send_json(200, {"status": "ok"})
 
     def _duo_sync(self):
         try:
