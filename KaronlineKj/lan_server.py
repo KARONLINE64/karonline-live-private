@@ -56,10 +56,12 @@ PBKDF2_ITERATIONS = 120_000
 # RLock : les fonctions se composent entre elles (ex. auth_create_account
 # tient le verrou puis appelle _accounts qui le reprenne) -> réentrant requis.
 _AUTH_LOCK = threading.RLock()
+_DUO_LOCK = threading.RLock()
 _ACCOUNTS: dict[str, dict] | None = None
 _TOKENS: dict[str, dict] | None = None
 _VERIFICATIONS: dict[str, dict] = {}
 SESSIONS: dict[str, dict] = {}
+DUO_SESSIONS: dict[str, dict] = {}
 
 try:
     _load_sessions_on_startup()
@@ -481,6 +483,24 @@ class RequestHandler(BaseHTTPRequestHandler):
             self._send_json(200, {"site_active": auth_has_active_token(email, "site")})
             return
 
+        # Endpoint: GET /duo/status - statut d'une session DUO (invité connecté, synchro master clock)
+        if path == "/duo/status":
+            query = urlparse(self.path).query
+            params = dict(pair.split("=", 1) for pair in query.split("&") if "=" in pair)
+            code = unquote(params.get("code", "")).strip().upper()
+            with _DUO_LOCK:
+                entry = DUO_SESSIONS.get(code)
+                if not entry or time.time() - entry.get("ts", 0) > 24 * 3600:
+                    DUO_SESSIONS.pop(code, None)
+                    self._send_json(404, {"error": "DUO SESSION NOT FOUND"})
+                    return
+                self._send_json(200, {
+                    "code": code,
+                    "guest": entry.get("guest"),
+                    "sync": entry.get("sync"),
+                })
+            return
+
         # Endpoint: GET /session/<nom> - resoudre un nom de session (legacy :
         # renvoie host_url si l'hote expose un tunnel ; sinon mode relais).
         # Endpoint: GET /session/<nom>/catalogue - relais long-polling du
@@ -620,6 +640,18 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/session/unregister":
             self._unregister_session()
+            return
+        if self.path == "/duo/create":
+            self._duo_create()
+            return
+        if self.path == "/duo/join":
+            self._duo_join()
+            return
+        if self.path == "/duo/sync":
+            self._duo_sync()
+            return
+        if self.path == "/duo/close":
+            self._duo_close()
             return
         if self.path == "/request-demand":
             self._relay_demand()
@@ -960,6 +992,79 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         SESSIONS.pop(name, None)
         _save_sessions()
+        self._send_json(200, {"status": "ok"})
+
+    def _duo_create(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+            code = str(payload.get("code", "")).strip().upper()
+        except Exception:
+            code = ""
+        if not code:
+            self._send_json(400, {"error": "INVALID CODE"})
+            return
+        with _DUO_LOCK:
+            DUO_SESSIONS[code] = {
+                "code": code,
+                "ts": time.time(),
+                "guest": None,
+                "sync": None,
+                "owner": self._bearer_email(),
+            }
+        print(f"DUO SESSION CREATED = {code}", flush=True)
+        self._send_json(200, {
+            "code": code,
+            "qr_url": f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://karonlinelive.com/duo.html?code={code}"
+        })
+
+    def _duo_join(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+            code = str(payload.get("code", "")).strip().upper()
+            guest_name = str(payload.get("guest_name", "Invité")).strip()
+        except Exception:
+            code, guest_name = "", "Invité"
+        if not code:
+            self._send_json(400, {"error": "INVALID CODE"})
+            return
+        with _DUO_LOCK:
+            entry = DUO_SESSIONS.get(code)
+            if not entry:
+                entry = {"code": code, "ts": time.time(), "guest": None, "sync": None}
+                DUO_SESSIONS[code] = entry
+            entry["guest"] = {"name": guest_name, "connected_at": time.time()}
+            entry["ts"] = time.time()
+        print(f"DUO GUEST JOINED = {code} ({guest_name})", flush=True)
+        self._send_json(200, {"status": "ok", "code": code})
+
+    def _duo_sync(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+            code = str(payload.get("code", "")).strip().upper()
+        except Exception:
+            code = ""
+        if code:
+            with _DUO_LOCK:
+                entry = DUO_SESSIONS.get(code)
+                if entry:
+                    entry["sync"] = payload
+                    entry["ts"] = time.time()
+        self._send_json(200, {"status": "ok"})
+
+    def _duo_close(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+            code = str(payload.get("code", "")).strip().upper()
+        except Exception:
+            code = ""
+        if code:
+            with _DUO_LOCK:
+                DUO_SESSIONS.pop(code, None)
+        print(f"DUO SESSION CLOSED = {code}", flush=True)
         self._send_json(200, {"status": "ok"})
 
     def _relay_push_endpoint(self):

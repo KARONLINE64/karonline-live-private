@@ -169,10 +169,12 @@ class DuoSessionManager(QObject):
             "is_playing": is_playing,
             "timestamp": time.time(),
         }
+        self._latest_sync_payload = payload
         self.sync_tick.emit(payload)
 
     def _start_polling(self):
         self._running = True
+        self._latest_sync_payload = None
         self._polling_thread = threading.Thread(target=self._poll_loop, daemon=True)
         self._polling_thread.start()
 
@@ -201,6 +203,23 @@ class DuoSessionManager(QObject):
                         self.is_connected = False
                         self.guest_info = None
                         self.guest_disconnected.emit()
+
+                    if not self.is_host:
+                        sync = data.get("sync")
+                        if sync:
+                            self.sync_tick.emit(sync)
+
+                if self.is_host and getattr(self, "_latest_sync_payload", None):
+                    sync_data = json.dumps(self._latest_sync_payload).encode("utf-8")
+                    sync_headers = dict(headers)
+                    sync_headers["Content-Type"] = "application/json"
+                    sync_req = urllib.request.Request(
+                        f"{CENTRAL_API_BASE}/duo/sync",
+                        data=sync_data,
+                        headers=sync_headers,
+                        method="POST",
+                    )
+                    urllib.request.urlopen(sync_req, timeout=3).close()
             except Exception:
                 pass
-            time.sleep(2)
+            time.sleep(1.5)

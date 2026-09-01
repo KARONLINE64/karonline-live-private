@@ -1607,7 +1607,10 @@ class MainWindow(QMainWindow):
         self.duo_overlay_btn.clicked.connect(self._toggle_duo_overlay)
         duo_box_layout.addWidget(self.duo_overlay_btn)
 
-        duo_box_layout.addStretch()
+        # Widget webcam fixe (non volant) sous le bouton AFFICHER/MASQUER
+        self.duo_overlay = DuoVideoOverlay(self)
+        duo_box_layout.addWidget(self.duo_overlay, 1)
+
         duo_layout.addWidget(duo_box)
 
         # PAGE HELP / AIDE & INFORMATIONS
@@ -2661,13 +2664,13 @@ class MainWindow(QMainWindow):
         self.duo_manager.close_session()
         self.duo_code_label.setText("○ Aucune session DUO active")
         self.duo_guest_label.setText("○ Aucun invité connecté")
+        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
         self.duo_qr_box.hide()
         self.duo_start_btn.setEnabled(True)
         self.duo_join_btn.setEnabled(True)
         self.duo_stop_btn.setEnabled(False)
         if self.duo_overlay:
-            self.duo_overlay.close()
-            self.duo_overlay = None
+            self.duo_overlay.set_connected_status(False)
         self.set_status("● Session DUO fermée", True)
 
     def _on_duo_session_created(self, code: str, qr_url: str):
@@ -2676,13 +2679,16 @@ class MainWindow(QMainWindow):
     def _on_duo_guest_connected(self, guest_info: dict):
         guest_name = guest_info.get("name", "Invité")
         self.duo_guest_label.setText(f"🟢 Connecté : {guest_name}")
-        self.duo_guest_label.setStyleSheet("color:#4ade80;font-size:13px;font-weight:700;")
+        self.duo_guest_label.setStyleSheet("color:#4ade80;font-size:15px;font-weight:700;")
         self.set_status(f"● DUO : {guest_name} a rejoint la session !", True)
-        self._ensure_duo_overlay(guest_name)
+        if self.duo_overlay:
+            self.duo_overlay.set_guest_name(guest_name)
+            self.duo_overlay.set_connected_status(True)
+            self.duo_overlay.show()
 
     def _on_duo_guest_disconnected(self):
         self.duo_guest_label.setText("○ Aucun invité connecté")
-        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:13px;")
+        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
         self.set_status("● DUO : L'invité s'est déconnecté", False)
         if self.duo_overlay:
             self.duo_overlay.set_connected_status(False)
@@ -2690,24 +2696,12 @@ class MainWindow(QMainWindow):
     def _on_duo_session_closed(self):
         self.duo_code_label.setText("○ Aucune session DUO active")
         self.duo_guest_label.setText("○ Aucun invité connecté")
-
-    def _ensure_duo_overlay(self, guest_name: str = "Invité"):
-        if not self.duo_overlay:
-            self.duo_overlay = DuoVideoOverlay(self)
-            self.duo_overlay.set_guest_name(guest_name)
-            self.duo_overlay.set_connected_status(True)
-            self.duo_overlay.show()
-            geo = self.geometry()
-            self.duo_overlay.move(geo.right() - 340, geo.top() + 60)
-        else:
-            self.duo_overlay.set_guest_name(guest_name)
-            self.duo_overlay.set_connected_status(True)
-            self.duo_overlay.show()
+        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
+        if self.duo_overlay:
+            self.duo_overlay.set_connected_status(False)
 
     def _toggle_duo_overlay(self):
-        if not self.duo_overlay:
-            self._ensure_duo_overlay()
-        else:
+        if self.duo_overlay:
             if self.duo_overlay.isVisible():
                 self.duo_overlay.hide()
             else:
