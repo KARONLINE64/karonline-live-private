@@ -18,8 +18,40 @@ from PySide6.QtWidgets import (
 )
 
 
+class _Biquad:
+    """Filtre IIR biquad (égaliseur en cloche, formules RBJ Audio EQ Cookbook)."""
+
+    def __init__(self):
+        self.b0, self.b1, self.b2 = 1.0, 0.0, 0.0
+        self.a1, self.a2 = 0.0, 0.0
+        self.x1 = self.x2 = 0.0
+        self.y1 = self.y2 = 0.0
+
+    def set_peaking(self, freq_hz: float, gain_db: float, sample_rate: int, q: float = 1.0):
+        A = 10 ** (gain_db / 40.0)
+        w0 = 2 * math.pi * freq_hz / sample_rate
+        alpha = math.sin(w0) / (2 * q)
+        cosw0 = math.cos(w0)
+
+        b0 = 1 + alpha * A
+        b1 = -2 * cosw0
+        b2 = 1 - alpha * A
+        a0 = 1 + alpha / A
+        a1 = -2 * cosw0
+        a2 = 1 - alpha / A
+
+        self.b0, self.b1, self.b2 = b0 / a0, b1 / a0, b2 / a0
+        self.a1, self.a2 = a1 / a0, a2 / a0
+
+    def process(self, x: float) -> float:
+        y = self.b0 * x + self.b1 * self.x1 + self.b2 * self.x2 - self.a1 * self.y1 - self.a2 * self.y2
+        self.x2, self.x1 = self.x1, x
+        self.y2, self.y1 = self.y1, y
+        return y
+
+
 class LiveMicMonitor(QObject):
-    """Capture le micro en direct et le renvoie vers le casque avec gain et écho/réverb.
+    """Capture le micro en direct et le renvoie vers le casque avec gain, EQ et écho/réverb.
 
     Sert à la fois de moteur de test réel et de source pour le VU-mètre (basé
     sur le niveau crête effectivement mesuré, pas une simulation).
@@ -32,13 +64,25 @@ class LiveMicMonitor(QObject):
     REVERB_DELAY_MS = 260
     REVERB_FEEDBACK = 0.35
 
+    EQ_LOW_FREQ = 150.0
+    EQ_MID_FREQ = 1000.0
+    EQ_HIGH_FREQ = 4000.0
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.mic_gain = 1.0
         self.head_gain = 1.0
         self.reverb_mix = 0.0
+        self.eq_low_db = 0.0
+        self.eq_mid_db = 0.0
+        self.eq_high_db = 0.0
         self.running = False
         self._out_channels = 1
+        self._sample_rate = self.SAMPLE_RATE
+        self._eq_low = _Biquad()
+        self._eq_mid = _Biquad()
+        self._eq_high = _Biquad()
+        self._update_eq_filters()
         self._delay_len = max(1, int(self.SAMPLE_RATE * self.REVERB_DELAY_MS / 1000))
         self._delay_buf = array("h", [0] * self._delay_len)
         self._delay_pos = 0
@@ -46,6 +90,17 @@ class LiveMicMonitor(QObject):
         self._sink = None
         self._input_io = None
         self._output_io = None
+
+    def set_eq(self, low_db: float, mid_db: float, high_db: float):
+        self.eq_low_db = low_db
+        self.eq_mid_db = mid_db
+        self.eq_high_db = high_db
+        self._update_eq_filters()
+
+    def _update_eq_filters(self):
+        self._eq_low.set_peaking(self.EQ_LOW_FREQ, self.eq_low_db, self._sample_rate, q=0.8)
+        self._eq_mid.set_peaking(self.EQ_MID_FREQ, self.eq_mid_db, self._sample_rate, q=1.0)
+        self._eq_high.set_peaking(self.EQ_HIGH_FREQ, self.eq_high_db, self._sample_rate, q=0.8)
 
     def start(self, input_device) -> bool:
         self.stop()
@@ -64,6 +119,8 @@ class LiveMicMonitor(QObject):
             return False
         out_fmt = fmt if output_device.isFormatSupported(fmt) else output_device.preferredFormat()
         self._out_channels = max(1, out_fmt.channelCount())
+        self._sample_rate = max(8000, fmt.sampleRate())
+        self._update_eq_filters()
 
         try:
             self._source = QAudioSource(input_device, fmt, self)
@@ -124,7 +181,10 @@ class LiveMicMonitor(QObject):
 
         out_samples = array("h", [0] * len(samples))
         for i, s in enumerate(samples):
-            dry = int(s * gain)
+            eq_out = self._eq_low.process(float(s))
+            eq_out = self._eq_mid.process(eq_out)
+            eq_out = self._eq_high.process(eq_out)
+            dry = int(max(-32768, min(32767, eq_out * gain)))
             delayed = delay_buf[pos]
             wet = int(dry * (1 - mix) + delayed * mix)
             feed = dry + int(delayed * self.REVERB_FEEDBACK)
@@ -158,23 +218,30 @@ class LiveMicMonitor(QObject):
 
 
 class AudioSetupDialog(QDialog):
-    """Fenêtre de configuration audio & VST micro/casque."""
+    """Fenêtre de configuration audio & VST micro/casque (mode paysage)."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, monitor: LiveMicMonitor | None = None):
         super().__init__(parent)
         self.setWindowTitle("🎧 Configuration Audio & Effets VST — KaronlineBox")
         self.setModal(True)
-        self.resize(480, 420)
-        self.setMinimumWidth(440)
-        self.setMinimumHeight(320)
+        self.resize(760, 430)
+        self.setMinimumWidth(700)
+        self.setMinimumHeight(360)
         self.settings = QSettings("Karonline", "KaronlineKJ")
 
-        self._test_active = False
-        self.monitor = LiveMicMonitor(self)
+        # Le moniteur peut être partagé avec la fenêtre principale : dans ce cas
+        # il continue de tourner même après la fermeture de ce dialogue (retour
+        # micro en direct pendant le karaoké, pas seulement pendant le test).
+        self.monitor = monitor if monitor is not None else LiveMicMonitor(self)
         self._init_ui()
         self.monitor.levelChanged.connect(self.vu_bar.setValue)
         self.monitor.error.connect(self._on_monitor_error)
         self.load_settings()
+
+        self._test_active = self.monitor.running
+        if self._test_active:
+            self.test_btn.setText("⏹ ARRETER LE RETOUR MICRO")
+            self.test_btn.setStyleSheet("background:#3a151b;border:1px solid #e80055;color:#ff6b6b;font-weight:700;padding:8px 14px;border-radius:5px;")
 
     def _init_ui(self):
         outer_layout = QVBoxLayout(self)
@@ -188,30 +255,37 @@ class AudioSetupDialog(QDialog):
         scroll.setWidget(scroll_content)
 
         layout = QVBoxLayout(scroll_content)
-        layout.setContentsMargins(18, 14, 18, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(16, 12, 16, 10)
+        layout.setSpacing(8)
 
         # En-tête
         header = QLabel("🎧 CONFIGURATION MICRO, CASQUE & EFFET VST")
-        header.setStyleSheet("color:#00c8ff;font-size:16px;font-weight:700;")
+        header.setStyleSheet("color:#00c8ff;font-size:15px;font-weight:700;")
         layout.addWidget(header)
 
         sub_header = QLabel(
-            "Sélectionnez votre micro, ajustez les niveaux de gain et réglez la "
-            "réverbération vocale pour une qualité sonore optimale en karaoké et DUO."
+            "Sélectionnez votre micro, ajustez les niveaux, l'égaliseur et la "
+            "réverbération pour une qualité sonore optimale en karaoké et DUO."
         )
         sub_header.setWordWrap(True)
-        sub_header.setStyleSheet("color:#9aa9b7;font-size:12px;margin-bottom:4px;")
+        sub_header.setStyleSheet("color:#9aa9b7;font-size:11px;margin-bottom:2px;")
         layout.addWidget(sub_header)
 
-        # 1. Sélection de l'entrée Micro
+        # Ligne principale en paysage : colonne gauche (micro + EQ) / colonne droite (niveaux + réverb)
+        columns_layout = QHBoxLayout()
+        columns_layout.setSpacing(10)
+
+        # ---- Colonne gauche : périphérique + égaliseur ----
+        left_col = QVBoxLayout()
+        left_col.setSpacing(8)
+
         input_box = QFrame()
         input_box.setStyleSheet("background:#08131c;border:1px solid #1b6f91;border-radius:6px;padding:10px;")
         input_layout = QVBoxLayout(input_box)
         input_layout.setSpacing(8)
 
         input_title = QLabel("🎙 PERIPHÉRIQUE D'ENTRÉE MICROPHONE")
-        input_title.setStyleSheet("color:#f4f7fb;font-size:13px;font-weight:700;")
+        input_title.setStyleSheet("color:#f4f7fb;font-size:12px;font-weight:700;")
         input_layout.addWidget(input_title)
 
         self.mic_source_combo = QComboBox()
@@ -231,13 +305,54 @@ class AudioSetupDialog(QDialog):
         self.mic_source_combo.currentIndexChanged.connect(self._on_mic_device_changed)
         input_layout.addWidget(self.mic_source_combo)
 
-        layout.addWidget(input_box)
+        left_col.addWidget(input_box)
 
-        # 2. Curseurs d'ajustement Niveaux & VST
+        eq_box = QFrame()
+        eq_box.setStyleSheet("background:#08131c;border:1px solid #1b6f91;border-radius:6px;padding:10px;")
+        eq_layout = QVBoxLayout(eq_box)
+        eq_layout.setSpacing(6)
+
+        eq_title = QLabel("🎚️ ÉGALISEUR MICRO (3 BANDES)")
+        eq_title.setStyleSheet("color:#f4f7fb;font-size:12px;font-weight:700;")
+        eq_layout.addWidget(eq_title)
+
+        eq_bands_layout = QHBoxLayout()
+        eq_bands_layout.setSpacing(14)
+        self.eq_low_slider, self.eq_low_label = self._build_eq_band(eq_bands_layout, "GRAVES")
+        self.eq_mid_slider, self.eq_mid_label = self._build_eq_band(eq_bands_layout, "MÉDIUMS")
+        self.eq_high_slider, self.eq_high_label = self._build_eq_band(eq_bands_layout, "AIGUS")
+        eq_layout.addLayout(eq_bands_layout)
+
+        self.eq_low_slider.valueChanged.connect(self._on_eq_slider_changed)
+        self.eq_mid_slider.valueChanged.connect(self._on_eq_slider_changed)
+        self.eq_high_slider.valueChanged.connect(self._on_eq_slider_changed)
+
+        eq_reset_btn = QPushButton("↺ Réinitialiser (0 dB)")
+        eq_reset_btn.setStyleSheet("""
+            QPushButton {
+                background: #0b1821;
+                border: 1px solid #387a90;
+                color: #d8dee5;
+                font-size: 11px;
+                padding: 4px 8px;
+                border-radius: 4px;
+            }
+            QPushButton:hover { background: #145cff; color: #ffffff; }
+        """)
+        eq_reset_btn.clicked.connect(self._reset_eq)
+        eq_layout.addWidget(eq_reset_btn)
+
+        left_col.addWidget(eq_box)
+        left_col.addStretch()
+
+        # ---- Colonne droite : niveaux, VU-mètre, réverb, presets ----
+        right_col = QVBoxLayout()
+        right_col.setSpacing(8)
+
         sliders_box = QFrame()
         sliders_box.setStyleSheet("background:#08131c;border:1px solid #1b6f91;border-radius:6px;padding:10px;")
         sliders_layout = QVBoxLayout(sliders_box)
-        sliders_layout.setSpacing(12)
+        sliders_layout.setSpacing(10)
 
         # Niveau Micro
         mic_row_head = QHBoxLayout()
@@ -339,10 +454,18 @@ class AudioSetupDialog(QDialog):
 
         sliders_layout.addLayout(preset_layout)
 
-        layout.addWidget(sliders_box)
+        right_col.addWidget(sliders_box)
+        right_col.addStretch()
 
-        # Actions bas de page
+        columns_layout.addLayout(left_col, 1)
+        columns_layout.addLayout(right_col, 1)
+        layout.addLayout(columns_layout)
+
+        outer_layout.addWidget(scroll)
+
+        # Actions bas de page (hors zone défilante, toujours visibles)
         actions_layout = QHBoxLayout()
+        actions_layout.setContentsMargins(16, 8, 16, 12)
 
         self.test_btn = QPushButton("🔊 TESTER MON MICRO")
         self.test_btn.setStyleSheet("""
@@ -378,9 +501,31 @@ class AudioSetupDialog(QDialog):
         actions_layout.addStretch()
         actions_layout.addWidget(self.save_btn)
 
-        layout.addLayout(actions_layout)
+        outer_layout.addLayout(actions_layout)
 
-        outer_layout.addWidget(scroll)
+    def _build_eq_band(self, layout: QHBoxLayout, name: str):
+        col = QVBoxLayout()
+        col.setSpacing(4)
+        col.setAlignment(Qt.AlignHCenter)
+
+        title = QLabel(name)
+        title.setAlignment(Qt.AlignHCenter)
+        title.setStyleSheet("color:#9aa9b7;font-size:10px;font-weight:700;")
+        col.addWidget(title)
+
+        slider = QSlider(Qt.Vertical)
+        slider.setRange(-12, 12)
+        slider.setValue(0)
+        slider.setFixedHeight(110)
+        col.addWidget(slider, alignment=Qt.AlignHCenter)
+
+        val_label = QLabel("0 dB")
+        val_label.setAlignment(Qt.AlignHCenter)
+        val_label.setStyleSheet("color:#00c8ff;font-size:10px;font-weight:700;")
+        col.addWidget(val_label)
+
+        layout.addLayout(col)
+        return slider, val_label
 
     def _populate_audio_devices(self):
         self.mic_source_combo.clear()
@@ -415,6 +560,20 @@ class AudioSetupDialog(QDialog):
         self.reverb_val_label.setText(f"{v} %")
         self.monitor.reverb_mix = (v / 100.0) * 0.6
 
+    def _on_eq_slider_changed(self, _v):
+        low = self.eq_low_slider.value()
+        mid = self.eq_mid_slider.value()
+        high = self.eq_high_slider.value()
+        self.eq_low_label.setText(f"{low:+d} dB")
+        self.eq_mid_label.setText(f"{mid:+d} dB")
+        self.eq_high_label.setText(f"{high:+d} dB")
+        self.monitor.set_eq(low, mid, high)
+
+    def _reset_eq(self):
+        self.eq_low_slider.setValue(0)
+        self.eq_mid_slider.setValue(0)
+        self.eq_high_slider.setValue(0)
+
     def _toggle_test_mic(self):
         if self._test_active:
             self.monitor.stop()
@@ -431,12 +590,13 @@ class AudioSetupDialog(QDialog):
         self.monitor.mic_gain = (self.mic_slider.value() / 100.0) * 1.5
         self.monitor.head_gain = (self.head_slider.value() / 100.0) * 1.2
         self.monitor.reverb_mix = (self.reverb_slider.value() / 100.0) * 0.6
+        self.monitor.set_eq(self.eq_low_slider.value(), self.eq_mid_slider.value(), self.eq_high_slider.value())
 
         if not self.monitor.start(device):
             return
 
         self._test_active = True
-        self.test_btn.setText("⏹ ARRETER LE TEST")
+        self.test_btn.setText("⏹ ARRETER LE RETOUR MICRO")
         self.test_btn.setStyleSheet("background:#3a151b;border:1px solid #e80055;color:#ff6b6b;font-weight:700;padding:8px 14px;border-radius:5px;")
 
     def _on_monitor_error(self, message):
@@ -453,18 +613,19 @@ class AudioSetupDialog(QDialog):
         self.mic_slider.setValue(self.settings.value("audio/mic_level", 80, type=int))
         self.head_slider.setValue(self.settings.value("audio/headphone_level", 80, type=int))
         self.reverb_slider.setValue(self.settings.value("audio/reverb_level", 35, type=int))
+        self.eq_low_slider.setValue(self.settings.value("audio/eq_low", 0, type=int))
+        self.eq_mid_slider.setValue(self.settings.value("audio/eq_mid", 0, type=int))
+        self.eq_high_slider.setValue(self.settings.value("audio/eq_high", 0, type=int))
 
     def save_and_accept(self):
-        self.monitor.stop()
-        self._test_active = False
+        # Le retour micro en direct (test) continue volontairement de tourner
+        # après validation : c'est le monitoring utilisé pendant le karaoké.
         self.settings.setValue("audio/mic_device_index", self.mic_source_combo.currentIndex())
         self.settings.setValue("audio/mic_device_name", self.mic_source_combo.currentText())
         self.settings.setValue("audio/mic_level", self.mic_slider.value())
         self.settings.setValue("audio/headphone_level", self.head_slider.value())
         self.settings.setValue("audio/reverb_level", self.reverb_slider.value())
+        self.settings.setValue("audio/eq_low", self.eq_low_slider.value())
+        self.settings.setValue("audio/eq_mid", self.eq_mid_slider.value())
+        self.settings.setValue("audio/eq_high", self.eq_high_slider.value())
         self.accept()
-
-    def reject(self):
-        self.monitor.stop()
-        self._test_active = False
-        super().reject()

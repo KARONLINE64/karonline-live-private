@@ -32,7 +32,7 @@ from core.lan_config import (
 from core.lan_request_receiver import LanRequestReceiver
 from core.central_auth import CentralAuthClient
 from core.duo_manager import DuoSessionManager
-from ui.audio_setup_dialog import AudioSetupDialog
+from ui.audio_setup_dialog import AudioSetupDialog, LiveMicMonitor
 from ui.auth_dialog import AuthDialog
 from ui.duo_widget import DuoVideoOverlay
 
@@ -98,6 +98,10 @@ class MainWindow(QMainWindow):
         self.duo_manager.guest_frame_received.connect(self._on_duo_guest_frame_received)
         self.duo_manager.host_frame_received.connect(self._on_duo_host_frame_received)
         self.duo_manager.sync_tick.connect(self._on_duo_sync_tick_received)
+
+        # Moniteur micro->casque en direct (retour vocal + EQ + reverb), partagé
+        # avec le dialogue de configuration audio pour rester actif pendant le karaoké.
+        self.mic_monitor = LiveMicMonitor(self)
 
         # V45 — actual RÉGLAGES runtime state.
         self.public_bg_files = []
@@ -2740,7 +2744,7 @@ class MainWindow(QMainWindow):
 
     def open_audio_setup_dialog(self):
         """Ouvre le dialogue de configuration audio VST micro/casque."""
-        dialog = AudioSetupDialog(self)
+        dialog = AudioSetupDialog(self, monitor=self.mic_monitor)
         dialog.exec()
 
     def _on_duo_sync_tick_received(self, sync_payload: dict):
@@ -4395,6 +4399,8 @@ class MainWindow(QMainWindow):
             return
         self._shutting_down = True
         self._unregister_relay_session()
+        if getattr(self, "mic_monitor", None) is not None:
+            self.mic_monitor.stop()
 
         if getattr(self, "lan_request_receiver", None) is not None:
             self.lan_request_receiver.stop()
