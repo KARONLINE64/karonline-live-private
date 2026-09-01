@@ -1,4 +1,5 @@
 ﻿from pathlib import Path
+import base64
 import json
 import os
 import re
@@ -81,6 +82,10 @@ class MainWindow(QMainWindow):
         self.public_video = None
         self.public_bg_label = None
         self.public_warning_label = None
+        self.public_duo_webcam_label = None
+        self._public_screen_mode = "video"
+        self._last_duo_guest_frame_data = None
+        self._duo_guest_connected_flag = False
         self.settings = QSettings("Karonline", "KaronlineKJ")
 
         # Compte KJ (API centrale) : jeton persistant ; favoris/réglages locaux.
@@ -869,6 +874,8 @@ class MainWindow(QMainWindow):
             return
         if self.public_video:
             self.public_video.hide()
+        if self.public_duo_webcam_label:
+            self.public_duo_webcam_label.hide()
         bg_on = self.settings.value("public_bg_on", True, type=bool)
         if bg_on and self.public_bg_files and self.public_bg_label:
             self.public_bg_label.show()
@@ -883,9 +890,31 @@ class MainWindow(QMainWindow):
     def _show_public_video(self):
         if self.public_bg_label:
             self.public_bg_label.hide()
+        if self.public_duo_webcam_label:
+            self.public_duo_webcam_label.hide()
         if self.public_video:
             self.public_video.show()
             self.public_video.raise_()
+
+    def _show_public_duo_webcam(self):
+        if self.public_bg_label:
+            self.public_bg_label.hide()
+        if self.public_video:
+            self.public_video.hide()
+        if self.public_duo_webcam_label:
+            self.public_duo_webcam_label.show()
+            self.public_duo_webcam_label.raise_()
+            if self._last_duo_guest_frame_data:
+                self._render_duo_frame_on_label(
+                    self.public_duo_webcam_label, self._last_duo_guest_frame_data
+                )
+            else:
+                self.public_duo_webcam_label.setText(
+                    "En attente de l'image webcam de l'invité..."
+                )
+                self.public_duo_webcam_label.setStyleSheet(
+                    "background:#000;color:#aeb7bf;font-size:16px;"
+                )
 
     def _load_public_backgrounds(self):
         folder = self.settings.value("public_bg_folder", "", type=str)
@@ -1863,6 +1892,19 @@ class MainWindow(QMainWindow):
         pb.setStyleSheet("font-size:11px;padding:3px 6px;")
         pb.clicked.connect(self.open_public_window)
         el.addWidget(pb)
+
+        self.public_duo_webcam_btn = QPushButton(
+            "📹  Ouvrir une fenêtre pour la webcam invité sur écran externe (DUO)"
+        )
+        self.public_duo_webcam_btn.setMaximumHeight(32)
+        self.public_duo_webcam_btn.setStyleSheet("font-size:11px;padding:3px 6px;")
+        self.public_duo_webcam_btn.setEnabled(False)
+        self.public_duo_webcam_btn.setToolTip(
+            "Disponible uniquement en session DUO avec un invité connecté "
+            "diffusant sa webcam."
+        )
+        self.public_duo_webcam_btn.clicked.connect(self.open_public_duo_webcam_window)
+        el.addWidget(self.public_duo_webcam_btn)
         bottom.addWidget(eb, 1)
 
         outer.addLayout(grid, 4)
@@ -2715,6 +2757,8 @@ class MainWindow(QMainWindow):
         self.duo_guest_label.setText(f"🟢 Connecté : {guest_name}")
         self.duo_guest_label.setStyleSheet("color:#4ade80;font-size:15px;font-weight:700;")
         self.set_status(f"● DUO : {guest_name} a rejoint la session !", True)
+        self._duo_guest_connected_flag = True
+        self._update_public_duo_webcam_button_state()
         if self.duo_overlay:
             self.duo_overlay.set_guest_name(guest_name)
             self.duo_overlay.set_connected_status(True)
@@ -2724,6 +2768,9 @@ class MainWindow(QMainWindow):
         self.duo_guest_label.setText("○ Aucun invité connecté")
         self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
         self.set_status("● DUO : L'invité s'est déconnecté", False)
+        self._duo_guest_connected_flag = False
+        self._last_duo_guest_frame_data = None
+        self._update_public_duo_webcam_button_state()
         if self.duo_overlay:
             self.duo_overlay.set_connected_status(False)
 
@@ -2731,12 +2778,33 @@ class MainWindow(QMainWindow):
         self.duo_code_label.setText("○ Aucune session DUO active")
         self.duo_guest_label.setText("○ Aucun invité connecté")
         self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
+        self._duo_guest_connected_flag = False
+        self._last_duo_guest_frame_data = None
+        self._update_public_duo_webcam_button_state()
+        if self._public_screen_mode == "duo_webcam":
+            self._public_screen_mode = "video"
+            self._show_public_background()
         if self.duo_overlay:
             self.duo_overlay.set_connected_status(False)
 
+    def _update_public_duo_webcam_button_state(self):
+        if not getattr(self, "public_duo_webcam_btn", None):
+            return
+        enabled = bool(
+            self.duo_manager.is_host
+            and self.duo_manager.active_code
+            and self._duo_guest_connected_flag
+        )
+        self.public_duo_webcam_btn.setEnabled(enabled)
+
     def _on_duo_guest_frame_received(self, frame_data: str):
-        if self.duo_overlay and self.duo_manager.is_host:
+        if not self.duo_manager.is_host:
+            return
+        self._last_duo_guest_frame_data = frame_data
+        if self.duo_overlay:
             self.duo_overlay.update_frame(frame_data)
+        if self._public_screen_mode == "duo_webcam" and self.public_duo_webcam_label:
+            self._render_duo_frame_on_label(self.public_duo_webcam_label, frame_data)
 
     def _on_duo_host_frame_received(self, frame_data: str):
         if self.duo_overlay and not self.duo_manager.is_host:
@@ -4325,6 +4393,12 @@ class MainWindow(QMainWindow):
         )
         self.public_warning_label.hide()
 
+        self.public_duo_webcam_label = QLabel(self.public_container)
+        self.public_duo_webcam_label.setAlignment(Qt.AlignCenter)
+        self.public_duo_webcam_label.setStyleSheet("background:#000;")
+        self.public_duo_webcam_label.setGeometry(self.public_container.rect())
+        self.public_duo_webcam_label.hide()
+
         self.public_window.setCentralWidget(self.public_container)
         self.public_window.closeEvent = self._public_close_event
 
@@ -4342,6 +4416,8 @@ class MainWindow(QMainWindow):
             self.public_bg_label.setGeometry(rect)
         if self.public_video:
             self.public_video.setGeometry(rect)
+        if self.public_duo_webcam_label:
+            self.public_duo_webcam_label.setGeometry(rect)
         if self.public_warning_label:
             self.public_warning_label.setGeometry(
                 0, 0, rect.width(), 48
@@ -4349,6 +4425,7 @@ class MainWindow(QMainWindow):
 
     def open_public_window(self):
         self._ensure_public_window()
+        self._public_screen_mode = "video"
 
         screens = QGuiApplication.screens()
         if len(screens) >= 2:
@@ -4374,6 +4451,59 @@ class MainWindow(QMainWindow):
         self.public_window.raise_()
         self.public_window.activateWindow()
         self.set_status("● Écran public ouvert")
+
+    def open_public_duo_webcam_window(self):
+        """Affiche la webcam de l'invité DUO en plein écran externe (option
+        mutuellement exclusive avec la vidéo karaoké sur le même écran)."""
+        if not (self.duo_manager.is_host and self.duo_manager.active_code and self._duo_guest_connected_flag):
+            QMessageBox.information(
+                self,
+                "Webcam invité indisponible",
+                "Cette option n'est disponible qu'en session DUO active, avec un "
+                "invité connecté diffusant sa webcam.",
+            )
+            return
+
+        self._ensure_public_window()
+        self._public_screen_mode = "duo_webcam"
+
+        screens = QGuiApplication.screens()
+        if len(screens) >= 2:
+            self.public_window.setGeometry(screens[1].availableGeometry())
+            self.public_window.show()
+        else:
+            self.public_window.resize(960, 540)
+            self.public_window.show()
+
+        self._resize_public_layers()
+        self._show_public_duo_webcam()
+        self.public_window.raise_()
+        self.public_window.activateWindow()
+        self.set_status("● Écran public : webcam invité DUO")
+
+    def _render_duo_frame_on_label(self, label: QLabel, frame_data):
+        """Affiche une frame DUO (JPEG base64) à la meilleure résolution
+        possible dans le label donné, sans la dégrader inutilement."""
+        if not frame_data:
+            return
+        try:
+            if isinstance(frame_data, str) and frame_data.startswith("data:image"):
+                raw_bytes = base64.b64decode(frame_data.split(",", 1)[-1])
+            elif isinstance(frame_data, bytes):
+                raw_bytes = frame_data
+            else:
+                return
+            pixmap = QPixmap()
+            if not pixmap.loadFromData(raw_bytes):
+                return
+            target_size = label.size()
+            if target_size.width() > 10 and target_size.height() > 10:
+                pixmap = pixmap.scaled(
+                    target_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
+                )
+            label.setPixmap(pixmap)
+        except Exception:
+            pass
 
 
     def closeEvent(self, event):

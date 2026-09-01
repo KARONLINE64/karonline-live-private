@@ -125,6 +125,13 @@ class LiveMicMonitor(QObject):
         try:
             self._source = QAudioSource(input_device, fmt, self)
             self._sink = QAudioSink(output_device, out_fmt, self)
+            # Petits buffers (~20 ms) pour minimiser le décalage voix/paroles
+            # perçu par le chanteur (la latence WASAPI par défaut de Qt est
+            # nettement plus longue).
+            in_buffer_bytes = max(512, int(fmt.sampleRate() * fmt.channelCount() * 2 * 0.02))
+            out_buffer_bytes = max(512, int(out_fmt.sampleRate() * out_fmt.channelCount() * 2 * 0.02))
+            self._source.setBufferSize(in_buffer_bytes)
+            self._sink.setBufferSize(out_buffer_bytes)
             self._input_io = self._source.start()
             self._output_io = self._sink.start()
         except Exception as exc:
@@ -224,9 +231,9 @@ class AudioSetupDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("🎧 Configuration Audio & Effets VST — KaronlineBox")
         self.setModal(True)
-        self.resize(760, 430)
-        self.setMinimumWidth(700)
-        self.setMinimumHeight(360)
+        self.resize(820, 560)
+        self.setMinimumWidth(780)
+        self.setMinimumHeight(520)
         self.settings = QSettings("Karonline", "KaronlineKJ")
 
         # Le moniteur peut être partagé avec la fenêtre principale : dans ce cas
