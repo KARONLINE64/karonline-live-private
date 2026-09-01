@@ -148,22 +148,13 @@ class DuoSessionManager(QObject):
             with urllib.request.urlopen(req, timeout=8) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
                 self.active_code = data.get("code", code)
-                qr_url = data.get(
-                    "qr_url",
-                    f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://karonlinelive.com/duo.html?code={self.active_code}"
-                )
+                qr_url = ""
                 self._start_polling()
                 self.start_webcam_if_available()
                 self.session_created.emit(self.active_code, qr_url)
                 return True, self.active_code, qr_url
         except Exception as exc:
-            # Mode secours local si API hors-ligne pendant dev/test
-            self.active_code = code
-            qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://karonlinelive.com/duo.html?code={code}"
-            self._start_polling()
-            self.start_webcam_if_available()
-            self.session_created.emit(code, qr_url)
-            return True, code, qr_url
+            return False, f"Impossible de créer la session DUO : {exc}", ""
 
     def join_session(self, code: str, guest_name: str = "Invité Desktop") -> tuple[bool, str]:
         """Rejoint une session DUO existante en tant qu'invité Desktop.
@@ -201,13 +192,7 @@ class DuoSessionManager(QObject):
                 self.start_webcam_if_available()
                 return True, f"Connecté à la session {clean_code}"
         except Exception as exc:
-            # Succès local en mode secours
-            self.active_code = clean_code
-            self.is_host = False
-            self.is_connected = True
-            self._start_polling()
-            self.start_webcam_if_available()
-            return True, f"Connecté à la session {clean_code}"
+            return False, f"Impossible de rejoindre la session DUO : {exc}"
 
     def start_webcam_if_available(self):
         if not getattr(self, "webcam_capturer", None):

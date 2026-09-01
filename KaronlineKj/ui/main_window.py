@@ -2372,6 +2372,7 @@ class MainWindow(QMainWindow):
         )
 
         if name == "Karaoké":
+            self.karaoke_volume_slider = s
             s.valueChanged.connect(
                 lambda x: self.gst_player.set_volume(x)
                 if self.gst_player else None
@@ -2703,9 +2704,17 @@ class MainWindow(QMainWindow):
             self.duo_join_btn.setEnabled(False)
             self.duo_stop_btn.setEnabled(True)
             self.set_status(f"● Session DUO Hôte {code} démarrée", True)
-            threading.Thread(target=self._fetch_duo_qr_pixmap, args=(qr_url,), daemon=True).start()
+            self.duo_qr_box.hide()
 
     def _join_duo_session_action(self):
+        if not self.ensure_central_login():
+            QMessageBox.warning(
+                self,
+                "CONNEXION COMPTE OBLIGATOIRE",
+                "Vous devez vous connecter à un compte KaronlineLive depuis "
+                "KaronlineBox pour rejoindre une session DUO desktop."
+            )
+            return
         code = self.duo_join_input.text().strip().upper()
         if not code:
             QMessageBox.warning(self, "CODE DUO MANQUANT", "Veuillez entrer le code DUO transmis par l'hôte (ex: DUO-8492).")
@@ -2719,6 +2728,9 @@ class MainWindow(QMainWindow):
             self.duo_stop_btn.setEnabled(True)
             self.set_status(f"● {msg}", True)
             self._ensure_duo_overlay("Hôte DUO")
+            self._set_duo_guest_controls_locked(True)
+        else:
+            QMessageBox.warning(self, "CONNEXION DUO IMPOSSIBLE", msg)
 
     def _fetch_duo_qr_pixmap(self, qr_url: str):
         try:
@@ -2738,6 +2750,7 @@ class MainWindow(QMainWindow):
 
     def _stop_duo_session_action(self):
         self.duo_manager.close_session()
+        self._set_duo_guest_controls_locked(False)
         self.duo_code_label.setText("○ Aucune session DUO active")
         self.duo_guest_label.setText("○ Aucun invité connecté")
         self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
@@ -2748,6 +2761,16 @@ class MainWindow(QMainWindow):
         if self.duo_overlay:
             self.duo_overlay.set_connected_status(False)
         self.set_status("● Session DUO fermée", True)
+
+    def _set_duo_guest_controls_locked(self, locked: bool):
+        """L'hôte garde seul les commandes video et le volume karaoke en DUO."""
+        for control_name in (
+            "back_btn", "play_btn", "stop_btn", "replay_btn", "forward_btn",
+            "progress", "karaoke_volume_slider",
+        ):
+            control = getattr(self, control_name, None)
+            if control is not None:
+                control.setEnabled(not locked)
 
     def _on_duo_session_created(self, code: str, qr_url: str):
         self.duo_code_label.setText(f"🟢 {code}")

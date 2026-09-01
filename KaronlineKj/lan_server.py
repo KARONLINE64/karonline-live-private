@@ -1000,6 +1000,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         self._send_json(200, {"status": "ok"})
 
     def _duo_create(self):
+        owner = self._bearer_email()
+        if not owner or "KaronlineBox" not in self.headers.get("User-Agent", ""):
+            self._send_json(401, {"error": "DESKTOP AUTH REQUIRED"})
+            return
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
@@ -1015,15 +1019,16 @@ class RequestHandler(BaseHTTPRequestHandler):
                 "ts": time.time(),
                 "guest": None,
                 "sync": None,
-                "owner": self._bearer_email(),
+                "owner": owner,
             }
         print(f"DUO SESSION CREATED = {code}", flush=True)
-        self._send_json(200, {
-            "code": code,
-            "qr_url": f"https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://karonlinelive.com/duo.html?code={code}"
-        })
+        self._send_json(200, {"code": code})
 
     def _duo_join(self):
+        guest_email = self._bearer_email()
+        if not guest_email or "KaronlineBox" not in self.headers.get("User-Agent", ""):
+            self._send_json(401, {"error": "DESKTOP AUTH REQUIRED"})
+            return
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
@@ -1037,9 +1042,13 @@ class RequestHandler(BaseHTTPRequestHandler):
         with _DUO_LOCK:
             entry = DUO_SESSIONS.get(code)
             if not entry:
-                entry = {"code": code, "ts": time.time(), "guest": None, "sync": None}
-                DUO_SESSIONS[code] = entry
-            entry["guest"] = {"name": guest_name, "connected_at": time.time()}
+                self._send_json(404, {"error": "DUO SESSION NOT FOUND"})
+                return
+            entry["guest"] = {
+                "name": guest_name,
+                "email": guest_email,
+                "connected_at": time.time(),
+            }
             entry["ts"] = time.time()
         print(f"DUO GUEST JOINED = {code} ({guest_name})", flush=True)
         self._send_json(200, {"status": "ok", "code": code})
