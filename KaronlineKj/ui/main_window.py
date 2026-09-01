@@ -96,6 +96,7 @@ class MainWindow(QMainWindow):
         self.duo_manager.session_closed.connect(self._on_duo_session_closed)
         self.duo_manager.guest_frame_received.connect(self._on_duo_guest_frame_received)
         self.duo_manager.host_frame_received.connect(self._on_duo_host_frame_received)
+        self.duo_manager.sync_tick.connect(self._on_duo_sync_tick_received)
 
         # V45 — actual RÉGLAGES runtime state.
         self.public_bg_files = []
@@ -1531,19 +1532,19 @@ class MainWindow(QMainWindow):
             "Invitez un ami ou votre famille à chanter avec vous en direct.\n"
             "Chantez ensemble comme si vous étiez dans la même pièce !"
         )
-        duo_intro.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
+        duo_intro.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
         duo_intro.setWordWrap(True)
         duo_box_layout.addWidget(duo_intro)
 
         duo_form = QFormLayout()
-        duo_form.setSpacing(14)
+        duo_form.setSpacing(6)
 
         self.duo_code_label = QLabel("○ Aucune session DUO active")
-        self.duo_code_label.setStyleSheet("color:#00c8ff;font-size:22px;font-weight:700;")
+        self.duo_code_label.setStyleSheet("color:#00c8ff;font-size:18px;font-weight:700;")
         duo_form.addRow("CODE DE SESSION", self.duo_code_label)
 
         self.duo_guest_label = QLabel("○ Aucun invité connecté")
-        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
+        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
         duo_form.addRow("STATUT INVITÉ", self.duo_guest_label)
 
         # Champ de saisie pour rejoindre une session en tant qu'invité Desktop
@@ -1551,32 +1552,32 @@ class MainWindow(QMainWindow):
         self.duo_join_input.setPlaceholderText("Entrez le code hôte (ex: DUO-8492)")
         self.duo_join_input.setStyleSheet(
             "background:#0b1821;border:1px solid #387a90;border-radius:4px;"
-            "color:#00c8ff;font-size:15px;font-weight:700;padding:6px 10px;"
+            "color:#00c8ff;font-size:13px;font-weight:700;padding:4px 8px;"
         )
         duo_form.addRow("REJOINDRE (INVITÉ)", self.duo_join_input)
 
         duo_box_layout.addLayout(duo_form)
 
         duo_buttons = QHBoxLayout()
-        self.duo_start_btn = QPushButton("▶ DÉMARRER UNE SESSION DUO (HÔTE)")
+        self.duo_start_btn = QPushButton("▶ DÉMARRER SESSION (HÔTE)")
         self.duo_start_btn.setStyleSheet(
             "background:linear-gradient(110deg,#124de5,#194fff);"
-            "border:0;border-radius:6px;padding:12px 18px;"
-            "color:#fff;font-weight:700;font-size:14px;"
+            "border:0;border-radius:5px;padding:8px 14px;"
+            "color:#fff;font-weight:700;font-size:13px;"
         )
         self.duo_start_btn.clicked.connect(self._start_duo_session_action)
 
         self.duo_join_btn = QPushButton("🔗 REJOINDRE")
         self.duo_join_btn.setStyleSheet(
-            "background:#0d1822;border:1px solid #00c8ff;border-radius:6px;"
-            "padding:12px 18px;color:#00c8ff;font-weight:700;font-size:14px;"
+            "background:#0d1822;border:1px solid #00c8ff;border-radius:5px;"
+            "padding:8px 14px;color:#00c8ff;font-weight:700;font-size:13px;"
         )
         self.duo_join_btn.clicked.connect(self._join_duo_session_action)
 
         self.duo_stop_btn = QPushButton("✕ FERMER / QUITTER")
         self.duo_stop_btn.setStyleSheet(
-            "background:#3a151b;border:1px solid #e80055;border-radius:6px;"
-            "padding:12px 18px;color:#ff6b6b;font-weight:700;font-size:14px;"
+            "background:#3a151b;border:1px solid #e80055;border-radius:5px;"
+            "padding:8px 14px;color:#ff6b6b;font-weight:700;font-size:13px;"
         )
         self.duo_stop_btn.setEnabled(False)
         self.duo_stop_btn.clicked.connect(self._stop_duo_session_action)
@@ -1595,7 +1596,7 @@ class MainWindow(QMainWindow):
             "📱 Scannez le QR Code avec un smartphone pour chanter immédiatement à deux !"
         )
         self.duo_instructions.setAlignment(Qt.AlignCenter)
-        self.duo_instructions.setStyleSheet("color:#00c8ff;font-size:14px;font-weight:700;")
+        self.duo_instructions.setStyleSheet("color:#00c8ff;font-size:12px;font-weight:700;")
         qr_layout.addWidget(self.duo_qr_label)
         qr_layout.addWidget(self.duo_instructions)
         self.duo_qr_box.hide()
@@ -1603,15 +1604,15 @@ class MainWindow(QMainWindow):
 
         self.duo_overlay_btn = QPushButton("📹 AFFICHER / MASQUER LA WEBCAM INVITÉ")
         self.duo_overlay_btn.setStyleSheet(
-            "background:#0d1822;border:1px solid #387a90;border-radius:6px;"
-            "padding:12px 18px;color:#f4f7fb;font-weight:700;font-size:14px;"
+            "background:#0d1822;border:1px solid #387a90;border-radius:5px;"
+            "padding:8px 14px;color:#f4f7fb;font-weight:700;font-size:13px;"
         )
         self.duo_overlay_btn.clicked.connect(self._toggle_duo_overlay)
         duo_box_layout.addWidget(self.duo_overlay_btn)
 
         # Widget webcam fixe (non volant) sous le bouton AFFICHER/MASQUER
         self.duo_overlay = DuoVideoOverlay(self)
-        duo_box_layout.addWidget(self.duo_overlay, 1)
+        duo_box_layout.addWidget(self.duo_overlay, 4)
 
         duo_layout.addWidget(duo_box)
 
@@ -2709,6 +2710,36 @@ class MainWindow(QMainWindow):
     def _on_duo_host_frame_received(self, frame_data: str):
         if self.duo_overlay and not self.duo_manager.is_host:
             self.duo_overlay.update_frame(frame_data)
+
+    def _on_duo_sync_tick_received(self, sync_payload: dict):
+        if self.duo_manager.is_host or not sync_payload:
+            return
+        song_title = str(sync_payload.get("song", "")).strip()
+        pos_ms = sync_payload.get("position_ms", 0)
+        if not song_title or not self.gst_player:
+            return
+
+        current_title = self.queue.current.title if self.queue.current else ""
+        if current_title.casefold() != song_title.casefold():
+            match_file = None
+            for s_id, path_str in self.song_files.items():
+                if song_title.casefold() in Path(path_str).stem.casefold():
+                    match_file = path_str
+                    break
+            if not match_file and self.media_dir.exists():
+                for f in self.media_dir.iterdir():
+                    if f.is_file() and f.suffix.lower() == ".mp4" and song_title.casefold() in f.stem.casefold():
+                        match_file = str(f)
+                        break
+            if match_file:
+                guest_song = Song(sync_payload.get("singer", ""), "", song_title, 0)
+                self.song_files[id(guest_song)] = match_file
+                self.queue.current = guest_song
+                self.play_song_object(guest_song)
+                self.gst_player.seek_ms(pos_ms)
+        else:
+            if abs(self.gst_player.position_ms() - pos_ms) > 1500:
+                self.gst_player.seek_ms(pos_ms)
 
     def _toggle_duo_overlay(self):
         if self.duo_overlay:
