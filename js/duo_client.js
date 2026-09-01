@@ -93,11 +93,20 @@
           if (data.sync) {
             updateSyncUI(data.sync);
           }
+          if (data.host_frame) {
+            const remoteImg = document.getElementById('remote-img');
+            const remoteVideo = document.getElementById('remote-video');
+            if (remoteImg) {
+              remoteImg.src = data.host_frame;
+              remoteImg.style.display = 'block';
+              if (remoteVideo) remoteVideo.style.display = 'none';
+            }
+          }
         }
       } catch (e) {
         /* polling silencieux */
       }
-    }, 500);
+    }, 350);
   }
 
   function updateSyncUI(sync) {

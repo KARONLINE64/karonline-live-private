@@ -32,6 +32,7 @@ from core.lan_config import (
 from core.lan_request_receiver import LanRequestReceiver
 from core.central_auth import CentralAuthClient
 from core.duo_manager import DuoSessionManager
+from ui.audio_setup_dialog import AudioSetupDialog
 from ui.auth_dialog import AuthDialog
 from ui.duo_widget import DuoVideoOverlay
 
@@ -232,16 +233,38 @@ class MainWindow(QMainWindow):
         else:
             self.progress.setRange(0, 0)
 
-        # Synchro Master Clock DUO
+        # Synchro Master Clock DUO & Capture d'écran vidéo Hôte (Webcam ou Karaoké)
         if hasattr(self, "duo_manager") and self.duo_manager and self.duo_manager.active_code:
             song = self.queue.current
+            is_karaoke = bool(self.gst_player and self.audio_owner == "karaoke")
             self.duo_manager.send_sync_state(
                 song.title if song else "",
                 song.singer if song else "",
                 position,
                 duration,
-                bool(self.gst_player and self.audio_owner == "karaoke")
+                is_karaoke
             )
+            if self.duo_manager.is_host and is_karaoke:
+                self._capture_and_send_duo_host_video_frame()
+
+
+    def _capture_and_send_duo_host_video_frame(self):
+        now = time.time()
+        if getattr(self, "_last_host_video_frame_time", 0) and now - self._last_host_video_frame_time < 0.35:
+            return
+        self._last_host_video_frame_time = now
+        try:
+            if getattr(self, "video", None):
+                pixmap = self.video.grab()
+                if not pixmap.isNull():
+                    scaled = pixmap.scaled(320, 240, Qt.KeepAspectRatio, Qt.FastTransformation)
+                    ba = QByteArray()
+                    buf = QBuffer(ba)
+                    buf.open(QIODevice.WriteOnly)
+                    scaled.save(buf, "JPG", 45)
+                    self.duo_manager.send_webcam_frame(bytes(ba.data()))
+        except Exception:
+            pass
 
 
     def _schedule_next_warning(self):
@@ -976,6 +999,7 @@ class MainWindow(QMainWindow):
 
         nav.addStretch()
 
+        self.audio_setup_btn = QPushButton("🎧  MICRO/CASQUE")
         self.duo_btn = QPushButton("🎙  DUO")
         self.demands_btn = QPushButton("DEMANDES")
         self.queue_nav_btn = QPushButton("☷  FILE D'ATTENTE")
@@ -984,7 +1008,7 @@ class MainWindow(QMainWindow):
         self.help_btn = QPushButton("❓  HELP")
 
         for b in [
-            self.duo_btn, self.demands_btn, self.queue_nav_btn,
+            self.audio_setup_btn, self.duo_btn, self.demands_btn, self.queue_nav_btn,
             self.favorites_btn, self.settings_btn, self.help_btn
         ]:
             b.setObjectName("nav")
@@ -999,6 +1023,9 @@ class MainWindow(QMainWindow):
             self.demands_indicator
         )
 
+        self.audio_setup_btn.clicked.connect(
+            self.open_audio_setup_dialog
+        )
         self.duo_btn.clicked.connect(
             lambda: self.show_main_view("duo")
         )
@@ -2711,11 +2738,18 @@ class MainWindow(QMainWindow):
         if self.duo_overlay and not self.duo_manager.is_host:
             self.duo_overlay.update_frame(frame_data)
 
+    def open_audio_setup_dialog(self):
+        """Ouvre le dialogue de configuration audio VST micro/casque."""
+        dialog = AudioSetupDialog(self)
+        dialog.exec()
+
     def _on_duo_sync_tick_received(self, sync_payload: dict):
         if self.duo_manager.is_host or not sync_payload:
             return
         song_title = str(sync_payload.get("song", "")).strip()
+        singer = str(sync_payload.get("singer", "")).strip()
         pos_ms = sync_payload.get("position_ms", 0)
+        is_playing = sync_payload.get("is_playing", False)
         if not song_title or not self.gst_player:
             return
 
@@ -2731,14 +2765,25 @@ class MainWindow(QMainWindow):
                     if f.is_file() and f.suffix.lower() == ".mp4" and song_title.casefold() in f.stem.casefold():
                         match_file = str(f)
                         break
+
+            # If not found locally, attempt to download from central library
+            if not match_file and hasattr(self, "_resolve_remote_filename"):
+                try:
+                    remote_fn = self._resolve_remote_filename("", song_title)
+                    if remote_fn and hasattr(self, "_download_from_central_library"):
+                        match_file = self._download_from_central_library(remote_fn)
+                except Exception:
+                    match_file = None
+
             if match_file:
-                guest_song = Song(sync_payload.get("singer", ""), "", song_title, 0)
+                guest_song = Song(singer, "", song_title, 0)
                 self.song_files[id(guest_song)] = match_file
                 self.queue.current = guest_song
                 self.play_song_object(guest_song)
-                self.gst_player.seek_ms(pos_ms)
+                if pos_ms > 0:
+                    self.gst_player.seek_ms(pos_ms)
         else:
-            if abs(self.gst_player.position_ms() - pos_ms) > 1500:
+            if is_playing and abs(self.gst_player.position_ms() - pos_ms) > 1200:
                 self.gst_player.seek_ms(pos_ms)
 
     def _toggle_duo_overlay(self):
