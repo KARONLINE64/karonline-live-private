@@ -359,4 +359,6 @@ class DuoSessionManager(QObject):
                     urllib.request.urlopen(sync_req, timeout=3).close()
             except Exception:
                 pass
-            time.sleep(0.4)
+            # Cycle court : reduit le decalage de demarrage video hote/invite
+            # (avant : 0.4s pouvait cumuler jusqu'a ~0.8s cote hote+invite).
+            time.sleep(0.15)

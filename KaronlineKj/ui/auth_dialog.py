@@ -95,8 +95,30 @@ class AuthDialog(QDialog):
         password_edit = QLineEdit()
         password_edit.setEchoMode(QLineEdit.Password)
         password_edit.setPlaceholderText("••••••••")
+
+        password_row = QWidget()
+        password_row_layout = QHBoxLayout(password_row)
+        password_row_layout.setContentsMargins(0, 0, 0, 0)
+        password_row_layout.setSpacing(4)
+        password_toggle_btn = QPushButton("👁")
+        password_toggle_btn.setCheckable(True)
+        password_toggle_btn.setFixedWidth(32)
+        password_toggle_btn.setToolTip("Afficher/masquer le mot de passe")
+        password_toggle_btn.setStyleSheet(
+            "QPushButton{background:#0b1821;border:1px solid #387a90;"
+            "border-radius:4px;color:#00c8ff;}"
+            "QPushButton:checked{background:#145cff;color:#ffffff;}"
+        )
+        password_toggle_btn.toggled.connect(
+            lambda checked, edit=password_edit: edit.setEchoMode(
+                QLineEdit.Normal if checked else QLineEdit.Password
+            )
+        )
+        password_row_layout.addWidget(password_edit)
+        password_row_layout.addWidget(password_toggle_btn)
+
         form.addRow("Adresse mail", email_edit)
-        form.addRow("Mot de passe", password_edit)
+        form.addRow("Mot de passe", password_row)
 
         if is_register:
             prefix = "register"
