@@ -485,6 +485,10 @@ class RequestHandler(BaseHTTPRequestHandler):
 
         # Endpoint: GET /duo/status - statut d'une session DUO (invité connecté, synchro master clock, frames webcam)
         if path == "/duo/status":
+            requester = self._bearer_email()
+            if not requester or "KaronlineBox" not in self.headers.get("User-Agent", ""):
+                self._send_json(401, {"error": "DESKTOP AUTH REQUIRED"})
+                return
             query = urlparse(self.path).query
             params = dict(pair.split("=", 1) for pair in query.split("&") if "=" in pair)
             code = unquote(params.get("code", "")).strip().upper()
@@ -493,6 +497,10 @@ class RequestHandler(BaseHTTPRequestHandler):
                 if not entry or time.time() - entry.get("ts", 0) > 24 * 3600:
                     DUO_SESSIONS.pop(code, None)
                     self._send_json(404, {"error": "DUO SESSION NOT FOUND"})
+                    return
+                guest = entry.get("guest") or {}
+                if requester not in {entry.get("owner"), guest.get("email")}:
+                    self._send_json(403, {"error": "DUO ACCESS DENIED"})
                     return
                 self._send_json(200, {
                     "code": code,
@@ -1008,10 +1016,16 @@ class RequestHandler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
             code = str(payload.get("code", "")).strip().upper()
+            session_name = str(payload.get("session_name", "")).strip().casefold()
         except Exception:
-            code = ""
-        if not code:
-            self._send_json(400, {"error": "INVALID CODE"})
+            code, session_name = "", ""
+        session = SESSIONS.get(session_name)
+        if not code or not session_name or not session or session.get("owner") != owner:
+            self._send_json(400, {"error": "HOST SESSION REQUIRED"})
+            return
+        if time.time() - session.get("ts", 0) > SESSION_TTL_SECONDS:
+            SESSIONS.pop(session_name, None)
+            self._send_json(400, {"error": "HOST SESSION REQUIRED"})
             return
         with _DUO_LOCK:
             DUO_SESSIONS[code] = {
@@ -1020,6 +1034,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 "guest": None,
                 "sync": None,
                 "owner": owner,
+                "session_name": session_name,
             }
         print(f"DUO SESSION CREATED = {code}", flush=True)
         self._send_json(200, {"code": code})
@@ -1054,6 +1069,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         self._send_json(200, {"status": "ok", "code": code})
 
     def _duo_frame(self):
+        sender = self._bearer_email()
+        if not sender or "KaronlineBox" not in self.headers.get("User-Agent", ""):
+            self._send_json(401, {"error": "DESKTOP AUTH REQUIRED"})
+            return
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
@@ -1066,9 +1085,17 @@ class RequestHandler(BaseHTTPRequestHandler):
             with _DUO_LOCK:
                 entry = DUO_SESSIONS.get(code)
                 if not entry:
-                    entry = {"code": code, "ts": time.time(), "guest": None, "sync": None}
-                    DUO_SESSIONS[code] = entry
-                if role == "host":
+                    self._send_json(404, {"error": "DUO SESSION NOT FOUND"})
+                    return
+                guest = entry.get("guest") or {}
+                allowed_role = "host" if sender == entry.get("owner") else "guest"
+                if sender != entry.get("owner") and sender != guest.get("email"):
+                    self._send_json(403, {"error": "DUO ACCESS DENIED"})
+                    return
+                if role != allowed_role:
+                    self._send_json(403, {"error": "DUO ROLE DENIED"})
+                    return
+                if allowed_role == "host":
                     entry["host_frame"] = frame
                 else:
                     entry["guest_frame"] = frame
@@ -1076,6 +1103,10 @@ class RequestHandler(BaseHTTPRequestHandler):
         self._send_json(200, {"status": "ok"})
 
     def _duo_sync(self):
+        owner = self._bearer_email()
+        if not owner or "KaronlineBox" not in self.headers.get("User-Agent", ""):
+            self._send_json(401, {"error": "DESKTOP AUTH REQUIRED"})
+            return
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
@@ -1085,12 +1116,21 @@ class RequestHandler(BaseHTTPRequestHandler):
         if code:
             with _DUO_LOCK:
                 entry = DUO_SESSIONS.get(code)
-                if entry:
-                    entry["sync"] = payload
-                    entry["ts"] = time.time()
+                if not entry:
+                    self._send_json(404, {"error": "DUO SESSION NOT FOUND"})
+                    return
+                if owner != entry.get("owner"):
+                    self._send_json(403, {"error": "HOST CONTROL REQUIRED"})
+                    return
+                entry["sync"] = payload
+                entry["ts"] = time.time()
         self._send_json(200, {"status": "ok"})
 
     def _duo_close(self):
+        requester = self._bearer_email()
+        if not requester or "KaronlineBox" not in self.headers.get("User-Agent", ""):
+            self._send_json(401, {"error": "DESKTOP AUTH REQUIRED"})
+            return
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
@@ -1099,8 +1139,21 @@ class RequestHandler(BaseHTTPRequestHandler):
             code = ""
         if code:
             with _DUO_LOCK:
-                DUO_SESSIONS.pop(code, None)
-        print(f"DUO SESSION CLOSED = {code}", flush=True)
+                entry = DUO_SESSIONS.get(code)
+                if not entry:
+                    self._send_json(404, {"error": "DUO SESSION NOT FOUND"})
+                    return
+                if requester == entry.get("owner"):
+                    DUO_SESSIONS.pop(code, None)
+                    print(f"DUO SESSION CLOSED BY HOST = {code}", flush=True)
+                elif requester == (entry.get("guest") or {}).get("email"):
+                    entry["guest"] = None
+                    entry.pop("guest_frame", None)
+                    entry["ts"] = time.time()
+                    print(f"DUO GUEST LEFT = {code}", flush=True)
+                else:
+                    self._send_json(403, {"error": "DUO ACCESS DENIED"})
+                    return
         self._send_json(200, {"status": "ok"})
 
     def _relay_push_endpoint(self):

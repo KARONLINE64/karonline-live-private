@@ -2697,6 +2697,15 @@ class MainWindow(QMainWindow):
             )
             return
         session_name = getattr(self, "_active_relay_session", None)
+        if not session_name:
+            QMessageBox.warning(
+                self,
+                "SESSION DE DEMANDES REQUISE",
+                "Démarrez d'abord votre session avec un nom de soirée.\n\n"
+                "En DUO, les demandes de titres sont exclusivement relayées "
+                "vers cette session de l'hôte et rattachées à son compte."
+            )
+            return
         ok, code, qr_url = self.duo_manager.create_session(session_name)
         if ok:
             self.duo_code_label.setText(f"🟢 {code}")
@@ -2721,11 +2730,15 @@ class MainWindow(QMainWindow):
             return
         ok, msg = self.duo_manager.join_session(code, guest_name="Invité Desktop")
         if ok:
+            # Un invité ne peut pas garder un nom de soirée personnel pendant
+            # le DUO : les demandes restent exclusivement chez l'hôte.
+            self._unregister_relay_session()
             self.duo_code_label.setText(f"🟢 {code} (Invité)")
             self.duo_guest_label.setText("🟢 Connecté à l'hôte")
             self.duo_start_btn.setEnabled(False)
             self.duo_join_btn.setEnabled(False)
             self.duo_stop_btn.setEnabled(True)
+            self.session_start_btn.setEnabled(False)
             self.set_status(f"● {msg}", True)
             self._ensure_duo_overlay("Hôte DUO")
             self._set_duo_guest_controls_locked(True)
@@ -2758,6 +2771,7 @@ class MainWindow(QMainWindow):
         self.duo_start_btn.setEnabled(True)
         self.duo_join_btn.setEnabled(True)
         self.duo_stop_btn.setEnabled(False)
+        self.session_start_btn.setEnabled(True)
         if self.duo_overlay:
             self.duo_overlay.set_connected_status(False)
         self.set_status("● Session DUO fermée", True)
@@ -2893,6 +2907,15 @@ class MainWindow(QMainWindow):
         tunnel/port entrant requis : uniquement une connexion sortante).
         Requiert obligatoirement une authentification valide au compte KaronlineLive du KJ/Hôte
         ET la présence d'une connexion simultanée sur le site karonlinelive.com avec le même compte."""
+        if self.duo_manager.active_code and not self.duo_manager.is_host:
+            QMessageBox.information(
+                self,
+                "MODE DUO INVITÉ ACTIF",
+                "Vous êtes invité dans une session DUO.\n\n"
+                "Quittez d'abord le mode DUO avant de démarrer une session "
+                "de demandes avec votre propre nom de soirée."
+            )
+            return
         if not self.ensure_central_login():
             QMessageBox.warning(
                 self,
