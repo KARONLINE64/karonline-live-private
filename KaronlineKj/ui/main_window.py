@@ -978,10 +978,11 @@ class MainWindow(QMainWindow):
         self.queue_nav_btn = QPushButton("☷  FILE D'ATTENTE")
         self.favorites_btn = QPushButton("☆  FAVORIS")
         self.settings_btn = QPushButton("⚙  RÉGLAGES")
+        self.help_btn = QPushButton("❓  HELP")
 
         for b in [
             self.duo_btn, self.demands_btn, self.queue_nav_btn,
-            self.favorites_btn, self.settings_btn
+            self.favorites_btn, self.settings_btn, self.help_btn
         ]:
             b.setObjectName("nav")
             nav.addWidget(b)
@@ -1009,6 +1010,9 @@ class MainWindow(QMainWindow):
         )
         self.settings_btn.clicked.connect(
             lambda: self.show_main_view("settings")
+        )
+        self.help_btn.clicked.connect(
+            lambda: self.show_main_view("help")
         )
 
         nav.addStretch()
@@ -1606,11 +1610,47 @@ class MainWindow(QMainWindow):
         duo_box_layout.addStretch()
         duo_layout.addWidget(duo_box)
 
+        # PAGE HELP / AIDE & INFORMATIONS
+        help_page = QWidget()
+        help_layout = QVBoxLayout(help_page)
+        help_layout.setContentsMargins(0, 0, 0, 0)
+
+        help_box = QGroupBox("❓ AIDE, N° DE VERSION & SYSTEM INFO")
+        help_box_layout = QVBoxLayout(help_box)
+
+        version_card = QLabel(
+            "<b>SOFTWARE VERSION & SYSTEM BUILD</b><br>"
+            "<span style='color:#00c8ff;font-size:20px;font-weight:700;'>KaronlineBox V90.2</span><br>"
+            "<span style='color:#4ade80;font-size:14px;font-weight:600;'>Date de Build : 01 Septembre 2026</span><br>"
+            "<span style='color:#9aa9b7;font-size:12px;'>Fichier d'installation : karonlinebox_setup.exe (~44,3 Mo)</span>"
+        )
+        version_card.setStyleSheet(
+            "background:#08131c;border:1px solid #1b6f91;border-radius:8px;padding:14px;margin-bottom:12px;"
+        )
+        version_card.setWordWrap(True)
+        help_box_layout.addWidget(version_card)
+
+        help_info = QLabel(
+            "🔒 <b>RAPPEL DE SÉCURITÉ ET DOUBLE AUTHENTIFICATION :</b><br>"
+            "Toute session KaronlineBox requiert obligatoirement que vous soyez connecté à votre compte KaronlineLive sur le site <code>karonlinelive.com</code> avec le MÊME e-mail et mot de passe.<br>"
+            "Cette validation garantit le débit de la bonne carte bancaire et le routage direct des demandes mobiles vers ce logiciel.<br><br>"
+            "<b>MODUS OPERANDI DES SESSIONS :</b><br>"
+            "1. <b>Session Unique Karaoké</b> : Onglet SESSION ➔ Démarrer 'soiree-marc' ➔ Les demandes mobiles arrivent en direct dans l'onglet DEMANDES.<br>"
+            "2. <b>Session DUO</b> : Onglet DUO ➔ Démarrer ➔ Transmettre le code DUO-XXXX (ou scanner QR code sur mobile) ➔ Visioconférence FaceTime Karaoké synchronisée !"
+        )
+        help_info.setStyleSheet("color:#d8dee5;font-size:13px;line-height:1.5;")
+        help_info.setWordWrap(True)
+        help_box_layout.addWidget(help_info)
+        help_box_layout.addStretch()
+
+        help_layout.addWidget(help_box)
+
         self.queue_area_stack.addWidget(queue_page)
         self.queue_area_stack.addWidget(demands_page)
         self.queue_area_stack.addWidget(favorites_page)
         self.queue_area_stack.addWidget(self.settings_page)
         self.queue_area_stack.addWidget(duo_page)
+        self.queue_area_stack.addWidget(help_page)
 
         # Start on the real queue.
         self.queue_area_stack.setCurrentIndex(0)
@@ -2353,6 +2393,8 @@ class MainWindow(QMainWindow):
         elif view == "settings":
             self.queue_area_stack.setCurrentIndex(3)
             self._update_manual_break_enabled()
+        elif view == "help":
+            self.queue_area_stack.setCurrentIndex(5)
 
         # Force un re-layout + repaint immediats : masquer/afficher live_box
         # et next_box laissait parfois un residu visuel (ancien contenu non

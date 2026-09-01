@@ -4,7 +4,7 @@
 ; telechargement ou depuis une cle USB.
 
 #define MyAppName "KaronlineBox"
-#define MyAppVersion "V90"
+#define MyAppVersion "V90.2 (01-09-2026)"
 #define MyAppExeName "KaronlineBox_V90.exe"
 #define MySourceDir "dist\KaronlineBox_V90"
 
