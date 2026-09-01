@@ -125,11 +125,11 @@ class LiveMicMonitor(QObject):
         try:
             self._source = QAudioSource(input_device, fmt, self)
             self._sink = QAudioSink(output_device, out_fmt, self)
-            # Petits buffers (~20 ms) pour minimiser le décalage voix/paroles
-            # perçu par le chanteur (la latence WASAPI par défaut de Qt est
-            # nettement plus longue).
-            in_buffer_bytes = max(512, int(fmt.sampleRate() * fmt.channelCount() * 2 * 0.02))
-            out_buffer_bytes = max(512, int(out_fmt.sampleRate() * out_fmt.channelCount() * 2 * 0.02))
+            # Buffers ~40 ms : compromis stabilite/latence. En dessous, le
+            # traitement Python (EQ+reverb) peut manquer des echeances quand
+            # le thread GUI est occupe, ce qui hachait le son ("heu heu heu").
+            in_buffer_bytes = max(512, int(fmt.sampleRate() * fmt.channelCount() * 2 * 0.04))
+            out_buffer_bytes = max(512, int(out_fmt.sampleRate() * out_fmt.channelCount() * 2 * 0.04))
             self._source.setBufferSize(in_buffer_bytes)
             self._sink.setBufferSize(out_buffer_bytes)
             self._input_io = self._source.start()
@@ -181,20 +181,43 @@ class LiveMicMonitor(QObject):
         gain = self.mic_gain
         mix = max(0.0, min(0.9, self.reverb_mix))
         head_gain = self.head_gain
+        feedback = self.REVERB_FEEDBACK
         delay_buf = self._delay_buf
         dlen = len(delay_buf)
         pos = self._delay_pos
         peak = 0
 
+        # Coefficients/etat des 3 filtres mis en variables locales : evite les
+        # appels de methode et lookups d'attributs par echantillon (leur cout,
+        # multiplie par des milliers d'echantillons, faisait prendre du retard
+        # au traitement et hachait le son, meme reverb desactivee).
+        eq_low, eq_mid, eq_high = self._eq_low, self._eq_mid, self._eq_high
+        lb0, lb1, lb2, la1, la2 = eq_low.b0, eq_low.b1, eq_low.b2, eq_low.a1, eq_low.a2
+        lx1, lx2, ly1, ly2 = eq_low.x1, eq_low.x2, eq_low.y1, eq_low.y2
+        mb0, mb1, mb2, ma1, ma2 = eq_mid.b0, eq_mid.b1, eq_mid.b2, eq_mid.a1, eq_mid.a2
+        mx1, mx2, my1, my2 = eq_mid.x1, eq_mid.x2, eq_mid.y1, eq_mid.y2
+        hb0, hb1, hb2, ha1, ha2 = eq_high.b0, eq_high.b1, eq_high.b2, eq_high.a1, eq_high.a2
+        hx1, hx2, hy1, hy2 = eq_high.x1, eq_high.x2, eq_high.y1, eq_high.y2
+
         out_samples = array("h", [0] * len(samples))
         for i, s in enumerate(samples):
-            eq_out = self._eq_low.process(float(s))
-            eq_out = self._eq_mid.process(eq_out)
-            eq_out = self._eq_high.process(eq_out)
-            dry = int(max(-32768, min(32767, eq_out * gain)))
+            x = float(s)
+            y = lb0 * x + lb1 * lx1 + lb2 * lx2 - la1 * ly1 - la2 * ly2
+            lx2, lx1 = lx1, x
+            ly2, ly1 = ly1, y
+            x = y
+            y = mb0 * x + mb1 * mx1 + mb2 * mx2 - ma1 * my1 - ma2 * my2
+            mx2, mx1 = mx1, x
+            my2, my1 = my1, y
+            x = y
+            y = hb0 * x + hb1 * hx1 + hb2 * hx2 - ha1 * hy1 - ha2 * hy2
+            hx2, hx1 = hx1, x
+            hy2, hy1 = hy1, y
+
+            dry = int(max(-32768, min(32767, y * gain)))
             delayed = delay_buf[pos]
             wet = int(dry * (1 - mix) + delayed * mix)
-            feed = dry + int(delayed * self.REVERB_FEEDBACK)
+            feed = dry + int(delayed * feedback)
             feed = max(-32768, min(32767, feed))
             delay_buf[pos] = feed
             pos += 1
@@ -204,6 +227,9 @@ class LiveMicMonitor(QObject):
             out_samples[i] = out
             peak = max(peak, abs(out))
         self._delay_pos = pos
+        eq_low.x1, eq_low.x2, eq_low.y1, eq_low.y2 = lx1, lx2, ly1, ly2
+        eq_mid.x1, eq_mid.x2, eq_mid.y1, eq_mid.y2 = mx1, mx2, my1, my2
+        eq_high.x1, eq_high.x2, eq_high.y1, eq_high.y2 = hx1, hx2, hy1, hy2
 
         if self._out_channels > 1:
             expanded = array("h", [0] * (len(out_samples) * self._out_channels))
