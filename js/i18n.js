@@ -28,6 +28,11 @@ const KL_TRANSLATIONS = {
     cardOptional: 'Carte bancaire (optionnel)',
     subscribeNote: 'Vos futures sessions KaronlineBox seront rattachées à ce compte pour la facturation. Phase tests amis/famille : aucun prélèvement, seuls les 4 derniers chiffres sont mémorisés.',
     createAccount: 'Créer mon compte',
+    licenseTitle: 'CONDITIONS D’UTILISATION & LICENCE KARONLINEBOX',
+    licenseVersion: 'Version 1.0',
+    termsRead: 'J’ai lu les Conditions d’utilisation.',
+    licenseAccept: 'J’accepte la Licence d’utilisation de KaronlineBox.',
+    downloadConfirm: 'Télécharger KaronlineBox',
     unsubscribeTitle: 'Se désabonner',
     unsubscribeText: 'Votre compte sera désactivé et toutes vos sessions seront fermées. Cette action est réversible uniquement en contactant KaronlineLive.',
     unsubscribeConfirm: 'Confirmer le désabonnement',
@@ -65,6 +70,11 @@ const KL_TRANSLATIONS = {
     cardOptional: 'Bank card (optional)',
     subscribeNote: 'Your future KaronlineBox sessions will be linked to this account for billing. Friends and family test phase: no charge is made; only the last four digits are stored.',
     createAccount: 'Create my account',
+    licenseTitle: 'TERMS OF USE & KARONLINEBOX LICENSE',
+    licenseVersion: 'Version 1.0',
+    termsRead: 'I have read the Terms of Use.',
+    licenseAccept: 'I accept the KaronlineBox User License Agreement.',
+    downloadConfirm: 'Download KaronlineBox',
     unsubscribeTitle: 'Cancel subscription',
     unsubscribeText: 'Your account will be deactivated and all of your sessions will be closed. This action can only be reversed by contacting KaronlineLive.',
     unsubscribeConfirm: 'Confirm cancellation',
@@ -160,6 +170,8 @@ function applyKaronlineLanguage() {
       ? 'KaronlineLive, karaoke and entertainment software'
       : 'KaronlineLive, logiciel de karaoké et animation';
   }
+  document.querySelector('#terms-fr')?.toggleAttribute('hidden', language === 'en');
+  document.querySelector('#terms-en')?.toggleAttribute('hidden', language !== 'en');
   document.querySelectorAll('[data-i18n]').forEach((element) => {
     const text = klText(element.dataset.i18n);
     if (text) element.textContent = text;

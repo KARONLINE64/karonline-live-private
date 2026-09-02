@@ -20,6 +20,10 @@ const emptyState = document.querySelector('#empty-state');
 const search = document.querySelector('#search');
 const downloadTriggers = document.querySelectorAll('#download-trigger, #download-trigger-mobile');
 const downloadStatuses = document.querySelectorAll('#download-status, #download-status-mobile');
+const downloadLicenseDialog = document.querySelector('#download-license-dialog');
+const termsReadCheck = document.querySelector('#terms-read-check');
+const licenseAcceptCheck = document.querySelector('#license-accept-check');
+const licenseDownloadConfirm = document.querySelector('#license-download-confirm');
 const hostDialog = document.querySelector('#host-connect-dialog');
 const hostForm = document.querySelector('#host-connect-form');
 const hostInput = document.querySelector('#host-url-input');
@@ -162,7 +166,24 @@ function setDownloadStatus(text, state) {
   });
 }
 
-downloadTriggers.forEach((trigger) => trigger.addEventListener('click', async () => {
+function updateLicenseDownloadState() {
+  if (licenseDownloadConfirm) {
+    licenseDownloadConfirm.disabled = !(termsReadCheck?.checked && licenseAcceptCheck?.checked);
+  }
+}
+
+function openDownloadLicenseDialog() {
+  if (termsReadCheck) termsReadCheck.checked = false;
+  if (licenseAcceptCheck) licenseAcceptCheck.checked = false;
+  updateLicenseDownloadState();
+  try {
+    downloadLicenseDialog?.showModal();
+  } catch (error) {
+    console.error('Erreur ouverture de la licence:', error);
+  }
+}
+
+async function startKaronlineBoxDownload() {
   if (isDownloading) return;
   
   isDownloading = true;
@@ -193,7 +214,16 @@ downloadTriggers.forEach((trigger) => trigger.addEventListener('click', async ()
     isDownloading = false;
     downloadTriggers.forEach((t) => t.disabled = false);
   }
-}));
+}
+
+downloadTriggers.forEach((trigger) => trigger.addEventListener('click', openDownloadLicenseDialog));
+termsReadCheck?.addEventListener('change', updateLicenseDownloadState);
+licenseAcceptCheck?.addEventListener('change', updateLicenseDownloadState);
+licenseDownloadConfirm?.addEventListener('click', () => {
+  if (!termsReadCheck?.checked || !licenseAcceptCheck?.checked) return;
+  downloadLicenseDialog?.close();
+  startKaronlineBoxDownload();
+});
 
 document.querySelectorAll('[data-close-dialog]').forEach((button) => {
   button.addEventListener('click', () => {

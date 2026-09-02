@@ -171,10 +171,10 @@
       border: 0;
       border-radius: 6px;
       cursor: pointer;
-      inset: 3.3% auto auto 89.6%;
+      inset: 3.3% auto auto 93.1%;
       padding: 0;
       position: absolute;
-      width: 2.8%;
+      width: 3.8%;
       height: 5.9%;
       z-index: 2;
     }
@@ -185,6 +185,33 @@
       outline: 2px solid #fff;
       outline-offset: 2px;
     }
+
+    .terms-dialog {
+      background: #080e15;
+      border: 1px solid #387a90;
+      color: #f4f7fb;
+      max-height: min(800px, calc(100vh - 28px));
+      padding: 26px;
+      width: min(780px, calc(100vw - 28px));
+    }
+
+    .terms-dialog::backdrop { background: rgba(0, 0, 0, .82); }
+
+    .terms-copy {
+      border: 1px solid #20323b;
+      color: #d8dee5;
+      font-size: 13px;
+      line-height: 1.55;
+      margin: 16px 0;
+      max-height: min(430px, 50vh);
+      overflow-y: auto;
+      padding: 14px;
+      white-space: pre-line;
+    }
+
+    .terms-copy h3 { color: #00c8ff; margin: 0 0 10px; }
+    .terms-check { align-items: center; display: flex; gap: 9px; margin: 10px 0; }
+    .terms-check input { accent-color: #145cff; height: 17px; width: 17px; }
     
     .download-status {
       position: absolute;
@@ -495,6 +522,84 @@
     </ul>
     <div class="request-actions">
       <button class="button button-primary" type="button" data-close-dialog="downloads-dialog" data-i18n="close">Fermer</button>
+    </div>
+  </dialog>
+  <dialog id="download-license-dialog" class="terms-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="download-license-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineBox</p>
+    <h2 data-i18n="licenseTitle">CONDITIONS D'UTILISATION &amp; LICENCE KARONLINEBOX</h2>
+    <p data-i18n="licenseVersion" style="color:#9aa9b7;font-size:13px;margin:0;">Version 1.0</p>
+    <article id="terms-fr" class="terms-copy">
+<h3>CONDITIONS D'UTILISATION &amp; LICENCE KARONLINEBOX</h3>
+<strong>1. Objet</strong>
+KaronlineBox est un logiciel permettant d'accéder aux services proposés par KaronlineLive, notamment la lecture de contenus karaoké et les fonctionnalités associées selon l'offre souscrite. L'installation du logiciel implique l'acceptation des présentes conditions.
+
+<strong>2. Licence d'utilisation</strong>
+Karonline accorde à l'utilisateur une licence personnelle, non exclusive et non transférable d'utilisation du logiciel. Cette licence n'accorde aucun droit de propriété sur le logiciel ni sur les contenus accessibles via celui-ci.
+Il est interdit de copier ou redistribuer le logiciel, le revendre ou le louer, le modifier, le décompiler ou tenter de contourner ses protections, ou supprimer les mentions de propriété intellectuelle.
+
+<strong>3. Compte utilisateur</strong>
+L'utilisateur est responsable de la confidentialité de ses identifiants. Toute utilisation réalisée depuis son compte est réputée effectuée sous sa responsabilité. Le partage de compte n'est autorisé que lorsqu'il est explicitement prévu par l'abonnement concerné.
+
+<strong>4. Contenus karaoké</strong>
+Les chansons, vidéos, musiques, paroles et autres contenus demeurent la propriété de leurs titulaires respectifs. L'achat ou l'utilisation de KaronlineBox ne constitue pas une cession des droits d'auteur ou des droits voisins. Il est interdit d'extraire, copier, enregistrer, diffuser ou redistribuer les contenus sans autorisation légale.
+
+<strong>5. Utilisation privée et publique</strong>
+KaronlineBox peut être utilisé dans un cadre privé conformément à l'offre souscrite. Toute utilisation publique, commerciale ou dans un établissement recevant du public demeure soumise aux autorisations, licences et obligations légales applicables dans le pays d'utilisation. L'utilisateur est seul responsable du respect de ces obligations.
+
+<strong>6. Webcam et microphone</strong>
+Certaines fonctionnalités peuvent nécessiter l'accès à la webcam et au microphone. Ces accès sont toujours soumis à l'autorisation de Windows et de l'utilisateur. Karonline n'active jamais volontairement ces périphériques sans l'accord préalable de l'utilisateur.
+
+<strong>7. Comportement interdit</strong>
+Il est notamment interdit de harceler ou menacer d'autres utilisateurs, usurper une identité, diffuser des contenus illégaux, tenter de pirater ou perturber le service, ou contourner les limitations techniques de KaronlineBox. Toute violation peut entraîner la suspension ou la suppression du compte.
+
+<strong>8. Disponibilité</strong>
+Karonline s'efforce d'assurer la meilleure disponibilité possible du service. Des opérations de maintenance, mises à jour ou interruptions temporaires peuvent toutefois survenir sans ouvrir automatiquement droit à une indemnisation.
+
+<strong>9. Responsabilité</strong>
+L'utilisateur demeure responsable de l'utilisation qu'il fait du logiciel ainsi que du respect des lois applicables dans son pays. Karonline ne peut être tenu responsable d'une utilisation illégale ou non autorisée réalisée par l'utilisateur.
+
+<strong>10. Acceptation</strong>
+En cochant les deux cases ci-dessous, l'utilisateur confirme avoir lu les présentes Conditions d'utilisation et accepter la Licence KaronlineBox dans son intégralité.
+    </article>
+    <article id="terms-en" class="terms-copy" hidden>
+<h3>TERMS OF USE &amp; KARONLINEBOX LICENSE</h3>
+<strong>1. Purpose</strong>
+KaronlineBox is software that provides access to the services offered by KaronlineLive, including karaoke playback and related features, depending on the subscribed plan. Installing the software implies acceptance of these terms.
+
+<strong>2. License to Use</strong>
+Karonline grants the user a personal, non-exclusive, and non-transferable license to use the software. This license does not grant any ownership rights to the software or the content accessible through it.
+It is prohibited to copy or redistribute the software, resell or rent it, modify, decompile, or attempt to circumvent its protections, or remove any intellectual property notices.
+
+<strong>3. User Account</strong>
+The user is responsible for maintaining the confidentiality of their login credentials. Any use of their account is deemed to be carried out under their own responsibility. Account sharing is only permitted when explicitly provided for in the relevant subscription.
+
+<strong>4. Karaoke Content</strong>
+Songs, videos, music, lyrics, and other content remain the property of their respective owners. Purchasing or using KaronlineBox does not constitute a transfer of copyright or related rights. It is prohibited to extract, copy, record, broadcast, or redistribute the content without legal authorization.
+
+<strong>5. Private and Public Use</strong>
+KaronlineBox may be used privately in accordance with the subscribed offer. Any public, commercial, or institutional use remains subject to the authorizations, licenses, and legal obligations applicable in the country of use. The user is solely responsible for complying with these obligations.
+
+<strong>6. Webcam and Microphone</strong>
+Some features may require access to the webcam and microphone. This access is always subject to authorization from Windows and the user. Karonline never intentionally activates these devices without the user's prior consent.
+
+<strong>7. Prohibited Behavior</strong>
+It is specifically prohibited to harass or threaten other users, impersonate another user, distribute illegal content, attempt to hack or disrupt the service, or circumvent the technical limitations of KaronlineBox. Any violation may result in the suspension or deletion of the account.
+
+<strong>8. Availability</strong>
+Karonline strives to ensure the best possible service availability. However, maintenance, updates, or temporary interruptions may occur without automatically entitling the user to compensation.
+
+<strong>9. Liability</strong>
+The user remains responsible for their use of the software and for complying with the applicable laws in their country. Karonline cannot be held liable for any illegal or unauthorized use by the user.
+
+<strong>10. Acceptance</strong>
+By checking the two boxes below, the user confirms that they have read these Terms of Use and accept the KaronlineBox License in its entirety.
+    </article>
+    <label class="terms-check"><input id="terms-read-check" type="checkbox"><span data-i18n="termsRead">J'ai lu les Conditions d'utilisation.</span></label>
+    <label class="terms-check"><input id="license-accept-check" type="checkbox"><span data-i18n="licenseAccept">J'accepte la Licence d'utilisation de KaronlineBox.</span></label>
+    <div class="request-actions">
+      <button id="license-download-confirm" class="button button-primary" type="button" disabled data-i18n="downloadConfirm">Télécharger KaronlineBox</button>
+      <button class="button button-primary" type="button" data-close-dialog="download-license-dialog" data-i18n="cancel">Annuler</button>
     </div>
   </dialog>
   <dialog id="catalogue-dialog" class="catalogue-dialog" aria-labelledby="catalogue-dialog-title">
