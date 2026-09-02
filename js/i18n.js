@@ -25,6 +25,29 @@ const KL_TRANSLATIONS = {
   },
 };
 
+const KL_ARIA_LABELS = {
+  fr: {
+    about: 'À propos de KaronlineLive',
+    catalogue: 'Ouvrir le catalogue de chansons',
+    bundle: 'Découvrir l’offre bundle',
+    subscribe: 'S’abonner',
+    signIn: 'Se connecter',
+    downloads: 'Ouvrir les téléchargements',
+    trial: 'Ouvrir l’essai gratuit',
+    language: 'Passer le site en anglais',
+  },
+  en: {
+    about: 'About KaronlineLive',
+    catalogue: 'Open the song catalogue',
+    bundle: 'Discover the bundle offer',
+    subscribe: 'Subscribe',
+    signIn: 'Sign in',
+    downloads: 'Open downloads',
+    trial: 'Open the free trial',
+    language: 'Switch site to French',
+  },
+};
+
 const KL_ENGLISH_TEXT = {
   'À propos': 'About',
   'Offre bundle': 'Bundle offer',
@@ -77,16 +100,26 @@ function applyKaronlineLanguage() {
   const language = klLanguage();
   document.documentElement.lang = language;
   document.title = language === 'en' ? 'KaronlineLive - Karaoke & Entertainment' : 'KaronlineLive';
+  const homeVisual = document.querySelector('#home-visual');
+  if (homeVisual) {
+    homeVisual.src = `assets/ACCUEIL_${language === 'en' ? 'EN' : 'FR'}.png`;
+    homeVisual.alt = language === 'en'
+      ? 'KaronlineLive, karaoke and entertainment software'
+      : 'KaronlineLive, logiciel de karaoké et animation';
+  }
   document.querySelectorAll('[data-i18n]').forEach((element) => {
     const text = klText(element.dataset.i18n);
     if (text) element.textContent = text;
   });
-  document.querySelectorAll('[data-language]').forEach((button) => {
-    button.setAttribute('aria-pressed', String(button.dataset.language === language));
+  document.querySelectorAll('[data-i18n-aria]').forEach((element) => {
+    element.setAttribute('aria-label', KL_ARIA_LABELS[language][element.dataset.i18nAria]);
   });
-  document.querySelectorAll('[data-language-status]').forEach((element) => {
-    element.textContent = language === 'en' ? 'English interface' : 'Français';
-  });
+  const globeButton = document.querySelector('[data-language-toggle]');
+  if (globeButton) {
+    const label = KL_ARIA_LABELS[language].language;
+    globeButton.setAttribute('aria-label', label);
+    globeButton.title = label;
+  }
   document.querySelectorAll('[data-logout]').forEach((button) => {
     button.textContent = klText('logout');
     button.setAttribute('aria-label', klText('logout'));
@@ -105,9 +138,9 @@ function applyKaronlineLanguage() {
   });
 }
 
-document.querySelectorAll('[data-language]').forEach((button) => {
+document.querySelectorAll('[data-language-toggle]').forEach((button) => {
   button.addEventListener('click', () => {
-    localStorage.setItem(KL_LANGUAGE_KEY, button.dataset.language);
+    localStorage.setItem(KL_LANGUAGE_KEY, klLanguage() === 'fr' ? 'en' : 'fr');
     applyKaronlineLanguage();
     window.dispatchEvent(new Event('karonline-language-changed'));
   });
