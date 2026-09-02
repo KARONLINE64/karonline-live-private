@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
+import hmac
 import json
 import ipaddress
 import re
@@ -50,6 +53,7 @@ except OSError:
 ACCOUNTS_PATH = DATA_DIR / "accounts.json"
 TOKENS_PATH = DATA_DIR / "tokens.json"
 SESSIONS_PATH = DATA_DIR / "sessions.json"
+TURN_SECRET_PATH = DATA_DIR / "turn.secret"
 TOKEN_TTL_SECONDS = 30 * 24 * 3600
 PBKDF2_ITERATIONS = 120_000
 
@@ -107,6 +111,32 @@ def _save_sessions():
                     "host_url": entry.get("host_url"),
                 }
         _save_json(SESSIONS_PATH, serializable)
+
+
+def _turn_credentials(email: str) -> dict | None:
+    """Crée un identifiant TURN limité dans le temps sans exposer le secret."""
+    try:
+        secret = TURN_SECRET_PATH.read_text(encoding="ascii").strip()
+    except OSError:
+        return None
+    if secret.startswith("static-auth-secret="):
+        secret = secret.split("=", 1)[1].strip()
+    if not secret:
+        return None
+    expires_at = int(time.time()) + 3600
+    username = f"{expires_at}:{email}"
+    password = base64.b64encode(
+        hmac.new(secret.encode("ascii"), username.encode("utf-8"), hashlib.sha1).digest()
+    ).decode("ascii")
+    return {
+        "urls": [
+            "turn:145.241.173.241:3478?transport=udp",
+            "turn:145.241.173.241:3478?transport=tcp",
+        ],
+        "username": username,
+        "credential": password,
+        "ttl_seconds": 3600,
+    }
 
 
 def _accounts() -> dict[str, dict]:
@@ -511,6 +541,47 @@ class RequestHandler(BaseHTTPRequestHandler):
                 })
             return
 
+        # Endpoint: GET /duo/turn-credentials - identifiants TURN temporaires,
+        # accessibles uniquement a l'hote ou l'invite desktop de la session.
+        if path == "/duo/turn-credentials":
+            requester = self._bearer_email()
+            if not requester or "KaronlineBox" not in self.headers.get("User-Agent", ""):
+                self._send_json(401, {"error": "DESKTOP AUTH REQUIRED"})
+                return
+            query = urlparse(self.path).query
+            params = dict(pair.split("=", 1) for pair in query.split("&") if "=" in pair)
+            code = unquote(params.get("code", "")).strip().upper()
+            with _DUO_LOCK:
+                entry = DUO_SESSIONS.get(code)
+                guest = (entry or {}).get("guest") or {}
+                if not entry or requester not in {entry.get("owner"), guest.get("email")}:
+                    self._send_json(403, {"error": "DUO ACCESS DENIED"})
+                    return
+            credentials = _turn_credentials(requester)
+            if not credentials:
+                self._send_json(503, {"error": "TURN NOT CONFIGURED"})
+                return
+            self._send_json(200, credentials)
+            return
+
+        if path == "/duo/signal":
+            requester = self._bearer_email()
+            if not requester or "KaronlineBox" not in self.headers.get("User-Agent", ""):
+                self._send_json(401, {"error": "DESKTOP AUTH REQUIRED"})
+                return
+            query = urlparse(self.path).query
+            params = dict(pair.split("=", 1) for pair in query.split("&") if "=" in pair)
+            code = unquote(params.get("code", "")).strip().upper()
+            with _DUO_LOCK:
+                entry = DUO_SESSIONS.get(code)
+                guest = (entry or {}).get("guest") or {}
+                if not entry or requester not in {entry.get("owner"), guest.get("email")}:
+                    self._send_json(403, {"error": "DUO ACCESS DENIED"})
+                    return
+                signal_name = "answer" if requester == entry.get("owner") else "offer"
+                self._send_json(200, {"type": signal_name, "sdp": entry.get(signal_name)})
+            return
+
         # Endpoint: GET /session/<nom> - resoudre un nom de session (legacy :
         # renvoie host_url si l'hote expose un tunnel ; sinon mode relais).
         # Endpoint: GET /session/<nom>/catalogue - relais long-polling du
@@ -662,6 +733,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         if self.path == "/duo/sync":
             self._duo_sync()
+            return
+        if self.path == "/duo/signal":
+            self._duo_signal()
             return
         if self.path == "/duo/close":
             self._duo_close()
@@ -1124,6 +1198,37 @@ class RequestHandler(BaseHTTPRequestHandler):
                     return
                 entry["sync"] = payload
                 entry["ts"] = time.time()
+        self._send_json(200, {"status": "ok"})
+
+    def _duo_signal(self):
+        requester = self._bearer_email()
+        if not requester or "KaronlineBox" not in self.headers.get("User-Agent", ""):
+            self._send_json(401, {"error": "DESKTOP AUTH REQUIRED"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+            code = str(payload.get("code", "")).strip().upper()
+            signal_type = str(payload.get("type", "")).strip().lower()
+            sdp = str(payload.get("sdp", "")).strip()
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json(400, {"error": "INVALID SIGNAL"})
+            return
+        if signal_type not in {"offer", "answer"} or not sdp:
+            self._send_json(400, {"error": "INVALID SIGNAL"})
+            return
+        with _DUO_LOCK:
+            entry = DUO_SESSIONS.get(code)
+            guest = (entry or {}).get("guest") or {}
+            expected = "offer" if requester == (entry or {}).get("owner") else "answer"
+            if not entry or requester not in {entry.get("owner"), guest.get("email")}:
+                self._send_json(403, {"error": "DUO ACCESS DENIED"})
+                return
+            if signal_type != expected:
+                self._send_json(403, {"error": "DUO SIGNAL ROLE DENIED"})
+                return
+            entry[signal_type] = sdp
+            entry["ts"] = time.time()
         self._send_json(200, {"status": "ok"})
 
     def _duo_close(self):

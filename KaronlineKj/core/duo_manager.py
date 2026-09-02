@@ -30,6 +30,7 @@ import threading
 import time
 import urllib.request
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QObject, Qt, Signal
+from core.duo_audio import DuoAudioLink
 
 CENTRAL_API_BASE = "https://api.karonlinelive.com"
 
@@ -115,6 +116,13 @@ class DuoSessionManager(QObject):
         self.guest_info: dict | None = None
         self.is_connected: bool = False
         self.webcam_capturer: DuoWebcamCapturer | None = None
+        self.audio_link = DuoAudioLink(
+            CENTRAL_API_BASE,
+            lambda: getattr(self.central_auth, "token", ""),
+            lambda: self.central_auth.settings.value("audio/mic_device_name", "")
+            if getattr(self.central_auth, "settings", None) is not None else "",
+            self,
+        )
         self._polling_thread: threading.Thread | None = None
         self._running: bool = False
 
@@ -151,6 +159,7 @@ class DuoSessionManager(QObject):
                 qr_url = ""
                 self._start_polling()
                 self.start_webcam_if_available()
+                self.audio_link.start(self.active_code, is_host=True)
                 self.session_created.emit(self.active_code, qr_url)
                 return True, self.active_code, qr_url
         except Exception as exc:
@@ -190,6 +199,7 @@ class DuoSessionManager(QObject):
                 self.is_connected = True
                 self._start_polling()
                 self.start_webcam_if_available()
+                self.audio_link.start(self.active_code, is_host=False)
                 return True, f"Connecté à la session {clean_code}"
         except Exception as exc:
             return False, f"Impossible de rejoindre la session DUO : {exc}"
@@ -244,6 +254,7 @@ class DuoSessionManager(QObject):
     def close_session(self):
         """Ferme la session DUO en cours."""
         self._running = False
+        self.audio_link.stop()
         self.stop_webcam()
         if self.active_code:
             try:

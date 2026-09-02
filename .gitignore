@@ -45,6 +45,7 @@ accounts.json
 tokens.json
 accounts.tmp
 tokens.tmp
+turn.secret
 
 # Sorties de vérification locales
 *.verify.log

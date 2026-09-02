@@ -103,6 +103,8 @@ class MainWindow(QMainWindow):
         self.duo_manager.guest_frame_received.connect(self._on_duo_guest_frame_received)
         self.duo_manager.host_frame_received.connect(self._on_duo_host_frame_received)
         self.duo_manager.sync_tick.connect(self._on_duo_sync_tick_received)
+        self.duo_manager.audio_link.status_changed.connect(self._on_duo_audio_status)
+        self.duo_manager.audio_link.error.connect(self._on_duo_audio_error)
 
         # Moniteur micro->casque en direct (retour vocal + EQ + reverb), partagé
         # avec le dialogue de configuration audio pour rester actif pendant le karaoké.
@@ -2842,6 +2844,12 @@ class MainWindow(QMainWindow):
             self.duo_overlay.update_frame(frame_data)
         if self._public_screen_mode == "duo_webcam" and self.public_duo_webcam_label:
             self._render_duo_frame_on_label(self.public_duo_webcam_label, frame_data)
+
+    def _on_duo_audio_status(self, message: str):
+        self.set_status(f"● {message}", True)
+
+    def _on_duo_audio_error(self, message: str):
+        self.set_status(f"● {message}", False)
 
     def _on_duo_host_frame_received(self, frame_data: str):
         if self.duo_overlay and not self.duo_manager.is_host:
