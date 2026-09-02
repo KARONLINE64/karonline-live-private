@@ -89,7 +89,8 @@ const KL_ENGLISH_TEXT = {
 };
 
 function klLanguage() {
-  return localStorage.getItem(KL_LANGUAGE_KEY) === 'en' ? 'en' : 'fr';
+  const savedLanguage = localStorage.getItem(KL_LANGUAGE_KEY);
+  return savedLanguage === 'en' ? 'en' : 'fr';
 }
 
 function klText(key) {
