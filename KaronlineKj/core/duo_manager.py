@@ -159,7 +159,6 @@ class DuoSessionManager(QObject):
                 qr_url = ""
                 self._start_polling()
                 self.start_webcam_if_available()
-                self.audio_link.start(self.active_code, is_host=True)
                 self.session_created.emit(self.active_code, qr_url)
                 return True, self.active_code, qr_url
         except Exception as exc:
@@ -280,7 +279,7 @@ class DuoSessionManager(QObject):
         self.guest_info = None
         self.session_closed.emit()
 
-    def send_sync_state(self, song_title: str, singer: str, position_ms: int, duration_ms: int, is_playing: bool):
+    def send_sync_state(self, song_title: str, singer: str, position_ms: int, duration_ms: int, is_playing: bool, artist: str = ""):
         """Émet un tick de synchronisation Master Clock vers l'invité."""
         if not self.active_code:
             return
@@ -288,6 +287,7 @@ class DuoSessionManager(QObject):
             "type": "sync",
             "code": self.active_code,
             "song": song_title,
+            "artist": artist,
             "singer": singer,
             "position_ms": position_ms,
             "duration_ms": duration_ms,
@@ -305,6 +305,7 @@ class DuoSessionManager(QObject):
             "type": "sync",
             "code": self.active_code,
             "song": "",
+            "artist": "",
             "singer": "",
             "position_ms": 0,
             "duration_ms": 0,
@@ -340,10 +341,16 @@ class DuoSessionManager(QObject):
                     if guest and not self.is_connected:
                         self.is_connected = True
                         self.guest_info = guest
+                        # L'offre WebRTC n'est emise qu'une fois l'invite present,
+                        # sinon ses candidats ICE expirent avant l'appairage.
+                        if self.is_host:
+                            self.audio_link.start(self.active_code, is_host=True)
                         self.guest_connected.emit(guest)
                     elif not guest and self.is_connected:
                         self.is_connected = False
                         self.guest_info = None
+                        if self.is_host:
+                            self.audio_link.stop()
                         self.guest_disconnected.emit()
 
                     if self.is_host:

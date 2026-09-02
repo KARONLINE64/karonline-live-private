@@ -253,7 +253,8 @@ class MainWindow(QMainWindow):
                 song.singer if song else "",
                 position,
                 duration,
-                is_karaoke
+                is_karaoke,
+                song.artist if song else "",
             )
             if self.duo_manager.is_host and is_karaoke:
                 self._capture_and_send_duo_host_video_frame()
@@ -2865,10 +2866,12 @@ class MainWindow(QMainWindow):
             return
         song_title = str(sync_payload.get("song", "")).strip()
         singer = str(sync_payload.get("singer", "")).strip()
+        artist = str(sync_payload.get("artist", "")).strip()
         pos_ms = sync_payload.get("position_ms", 0)
         is_playing = sync_payload.get("is_playing", False)
 
         if not is_playing:
+            self._duo_guest_pending_title = ""
             if self.gst_player and self.audio_owner == "karaoke":
                 self.gst_player.stop()
                 self.audio_owner = "none"
@@ -2883,7 +2886,13 @@ class MainWindow(QMainWindow):
             return
 
         current_title = self.queue.current.title if self.queue.current else ""
-        if current_title.casefold() != song_title.casefold():
+        if current_title.casefold() != song_title.casefold() or self.audio_owner != "karaoke":
+            # Un tick arrive toutes les 0,15 s : sans ce verrou, le meme titre
+            # relancerait une recherche et un telechargement a chaque tick.
+            if getattr(self, "_duo_guest_pending_title", "") == song_title.casefold():
+                return
+            self._duo_guest_pending_title = song_title.casefold()
+
             match_file = None
             for s_id, path_str in self.song_files.items():
                 if song_title.casefold() in Path(path_str).stem.casefold():
@@ -2898,19 +2907,24 @@ class MainWindow(QMainWindow):
             # If not found locally, attempt to download from central library
             if not match_file and hasattr(self, "_resolve_remote_filename"):
                 try:
-                    remote_fn = self._resolve_remote_filename("", song_title)
+                    self.set_status(f"● DUO : recherche de « {song_title} »...", True)
+                    remote_fn = self._resolve_remote_filename(artist, song_title)
                     if remote_fn and hasattr(self, "_download_from_central_library"):
                         match_file = self._download_from_central_library(remote_fn)
                 except Exception:
                     match_file = None
 
             if match_file:
-                guest_song = Song(singer, "", song_title, 0)
+                guest_song = Song(singer, artist, song_title, 0)
                 self.song_files[id(guest_song)] = match_file
                 self.queue.current = guest_song
                 self.play_song_object(guest_song)
                 if pos_ms > 0:
                     self.gst_player.seek_ms(pos_ms)
+            else:
+                self.set_status(
+                    f"● DUO : « {song_title} » introuvable sur ce poste", False
+                )
         else:
             if is_playing and abs(self.gst_player.position_ms() - pos_ms) > 1200:
                 self.gst_player.seek_ms(pos_ms)

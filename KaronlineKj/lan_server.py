@@ -1160,6 +1160,9 @@ class RequestHandler(BaseHTTPRequestHandler):
                 "email": guest_email,
                 "connected_at": time.time(),
             }
+            # Un nouvel appairage doit renegocier : les SDP precedents sont perimes.
+            entry.pop("offer", None)
+            entry.pop("answer", None)
             entry["ts"] = time.time()
         print(f"DUO GUEST JOINED = {code} ({guest_name})", flush=True)
         self._send_json(200, {"status": "ok", "code": code})
@@ -1276,6 +1279,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                 elif requester == (entry.get("guest") or {}).get("email"):
                     entry["guest"] = None
                     entry.pop("guest_frame", None)
+                    entry.pop("offer", None)
+                    entry.pop("answer", None)
                     entry["ts"] = time.time()
                     print(f"DUO GUEST LEFT = {code}", flush=True)
                 else:
