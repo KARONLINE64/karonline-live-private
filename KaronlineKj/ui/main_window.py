@@ -2867,6 +2867,18 @@ class MainWindow(QMainWindow):
         singer = str(sync_payload.get("singer", "")).strip()
         pos_ms = sync_payload.get("position_ms", 0)
         is_playing = sync_payload.get("is_playing", False)
+
+        if not is_playing:
+            if self.gst_player and self.audio_owner == "karaoke":
+                self.gst_player.stop()
+                self.audio_owner = "none"
+                self._show_public_background()
+                self.play_btn.setText("▶")
+                self.progress.setRange(0, 0)
+                self.set_video_time_labels(0, 0)
+                self.set_status("● Vidéo arrêtée par l'hôte DUO", True)
+            return
+
         if not song_title or not self.gst_player:
             return
 
@@ -3951,6 +3963,11 @@ class MainWindow(QMainWindow):
             self.play_btn.setText("▶")
             self.progress.setRange(0, 0)
             self.set_video_time_labels(0, 0)
+
+            if (getattr(self, "duo_manager", None)
+                    and self.duo_manager.active_code
+                    and self.duo_manager.is_host):
+                self.duo_manager.send_playback_stopped()
 
             if on_confirm is not None:
                 on_confirm()

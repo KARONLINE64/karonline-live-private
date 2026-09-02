@@ -41,11 +41,11 @@ function refreshHostStatus() {
   const url = getHostServerUrl();
   hostStatuses.forEach((el) => {
     if (relayName) {
-      el.textContent = `Connecté à la session : ${relayName}`;
+      el.textContent = `${klText('hostConnectedSession')} ${relayName}`;
     } else if (url) {
-      el.textContent = `Connecté à : ${url.replace(/^https?:\/\//, '')}`;
+      el.textContent = `${klText('hostConnectedTo')} ${url.replace(/^https?:\/\//, '')}`;
     } else {
-      el.textContent = 'Non connecté à un hôte';
+      el.textContent = klText('hostNotConnected');
     }
   });
 }
@@ -90,18 +90,18 @@ hostForm?.addEventListener('submit', async (event) => {
   const errorEl = hostForm.querySelector('.host-connect-error');
   if (errorEl) errorEl.textContent = '';
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Connexion...';
+  submitBtn.textContent = klText('connecting');
 
   const result = await connectToHost(hostInput.value);
 
   submitBtn.disabled = false;
-  submitBtn.textContent = 'Se connecter';
+  submitBtn.textContent = klText('hostConnectSubmit');
 
   if (!result.ok) {
     if (errorEl) {
       errorEl.textContent = result.error === 'SESSION NOT FOUND'
-        ? '❌ Nom de session introuvable. Vérifiez avec votre animateur.'
-        : '❌ Connexion impossible. Réessayez.';
+        ? klText('sessionNotFound')
+        : klText('connectionFailed');
     }
     return;
   }
@@ -246,7 +246,7 @@ async function loadCatalogue() {
   if (!songsContainer) return;
 
   if (!isMobileParticipant && !localStorage.getItem('kl_auth_token')) {
-    songsContainer.innerHTML = '<p class="empty-state">🔒 Connectez-vous à votre compte KJ pour accéder au catalogue.</p>';
+    songsContainer.innerHTML = `<p class="empty-state">${klText('catalogueLocked')}</p>`;
     return;
   }
 
@@ -260,23 +260,23 @@ async function loadCatalogue() {
   }
 
   if (!isHostConnected()) {
-    songsContainer.innerHTML = '<p class="empty-state">🔌 Connectez-vous à un hôte KaronlineBox pour voir son catalogue.</p>';
+    songsContainer.innerHTML = `<p class="empty-state">${klText('catalogueNoHost')}</p>`;
     return;
   }
   try {
     const isAvailable = await checkLanServerAvailability();
     if (!isAvailable) {
       if (!isHostConnected()) {
-        songsContainer.innerHTML = '<p class="empty-state">⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.</p>';
+        songsContainer.innerHTML = `<p class="empty-state">${klText('sessionEnded')}</p>`;
       } else {
-        songsContainer.innerHTML = '<p class="empty-state">⚠️ Serveur indisponible. Vérifiez que KaronlineBox et le tunnel de votre hôte sont actifs.</p>';
+        songsContainer.innerHTML = `<p class="empty-state">${klText('serverUnavailable')}</p>`;
       }
       return;
     }
     const response = await fetch(getCatalogueUrl());
     if (response.status === 404 && getRelaySessionName()) {
       clearClosedRelaySession();
-      songsContainer.innerHTML = '<p class="empty-state">⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.</p>';
+      songsContainer.innerHTML = `<p class="empty-state">${klText('sessionEnded')}</p>`;
       return;
     }
     if (!response.ok) throw new Error('Catalogue indisponible');
@@ -284,7 +284,7 @@ async function loadCatalogue() {
     renderSongs(songs);
   } catch (error) {
     console.error('Erreur chargement catalogue:', error);
-    songsContainer.innerHTML = '<p class="empty-state">⚠️ Serveur LAN indisponible. Assurez-vous que le serveur est lancé: python lan_server.py --port 8765</p>';
+    songsContainer.innerHTML = `<p class="empty-state">${klText('lanUnavailable')}</p>`;
   }
 }
 
@@ -295,7 +295,7 @@ function renderSongs(items) {
       <span class="song-meta"><strong>${escapeHtml(song.title)}</strong><small>${escapeHtml(song.artist)}</small></span>
       <span class="song-arrow" aria-hidden="true">→</span>
     </button>`).join('');
-  resultCount.textContent = `${items.length} titre${items.length > 1 ? 's' : ''}`;
+  resultCount.textContent = `${items.length} ${items.length > 1 ? klText('songsCountPlural') : klText('songsCount')}`;
   emptyState.hidden = items.length > 0;
   songsContainer.querySelectorAll('.song-row').forEach((row) => {
     row.addEventListener('click', () => openRequest(songs[Number(row.dataset.index)]));
@@ -329,7 +329,7 @@ requestForm?.addEventListener('submit', async (event) => {
   
   // Validation
   if (!singer || !artist || !title || !Number.isInteger(key) || key < -6 || key > 6) {
-    output.textContent = 'Erreur : renseignez le chanteur, l’artiste et une tonalite de -6 a +6.';
+    output.textContent = klText('requestInvalid');
     output.classList.add('is-visible');
     return;
   }
@@ -344,13 +344,13 @@ requestForm?.addEventListener('submit', async (event) => {
   
   isSubmitting = true;
   submitButton.disabled = true;
-  output.textContent = 'Envoi de votre demande...';
+  output.textContent = klText('requestSending');
   output.classList.add('is-visible');
   
   try {
     const lanAvailable = await checkLanServerAvailability();
     if (!lanAvailable) {
-      output.textContent = '❌ Serveur LAN indisponible. Vérifiez que le serveur est lancé.';
+      output.textContent = klText('requestServerDown');
       output.classList.add('is-visible');
       submitButton.disabled = false;
       isSubmitting = false;
@@ -366,7 +366,7 @@ requestForm?.addEventListener('submit', async (event) => {
     });
     
     if (response.ok) {
-      output.textContent = 'Demande reçue ! Retour au catalogue...';
+      output.textContent = klText('requestReceived');
       output.classList.add('is-visible');
       setTimeout(() => {
         dialog?.close();
@@ -383,24 +383,24 @@ requestForm?.addEventListener('submit', async (event) => {
       }, 1200);
     } else if (response.status === 404 && getRelaySessionName()) {
       clearClosedRelaySession();
-      output.textContent = '⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.';
+      output.textContent = klText('sessionEnded');
       output.classList.add('is-visible');
       submitButton.disabled = false;
       isSubmitting = false;
     } else if (response.status === 409) {
-      output.textContent = '❌ KaronlineBox non actif. Lancez l\'application d\'abord.';
+      output.textContent = klText('boxNotActive');
       output.classList.add('is-visible');
       submitButton.disabled = false;
       isSubmitting = false;
     } else {
-      output.textContent = `Erreur serveur (${response.status}). Veuillez réessayer.`;
+      output.textContent = `${klText('serverError')} (${response.status})`;
       output.classList.add('is-visible');
       submitButton.disabled = false;
       isSubmitting = false;
     }
   } catch (error) {
     console.error('Erreur lors de l\'envoi :', error);
-    output.textContent = 'Le serveur est inaccessible. Vérifiez votre connexion réseau.';
+    output.textContent = klText('networkError');
     output.classList.add('is-visible');
     submitButton.disabled = false;
     isSubmitting = false;
@@ -410,6 +410,11 @@ requestForm?.addEventListener('submit', async (event) => {
 search?.addEventListener('input', () => {
   const query = search.value.trim().toLocaleLowerCase();
   renderSongs(songs.filter((song) => `${song.title} ${song.artist}`.toLocaleLowerCase().includes(query)));
+});
+
+window.addEventListener('karonline-language-changed', () => {
+  refreshHostStatus();
+  if (songs.length) renderSongs(songs);
 });
 
 function escapeHtml(value) {

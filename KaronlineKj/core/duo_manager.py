@@ -297,6 +297,23 @@ class DuoSessionManager(QObject):
         self._latest_sync_payload = payload
         self.sync_tick.emit(payload)
 
+    def send_playback_stopped(self):
+        """Pousse un arrêt immédiat : la boucle de position ne tourne plus après un STOP."""
+        if not self.active_code:
+            return
+        payload = {
+            "type": "sync",
+            "code": self.active_code,
+            "song": "",
+            "singer": "",
+            "position_ms": 0,
+            "duration_ms": 0,
+            "is_playing": False,
+            "timestamp": time.time(),
+        }
+        self._latest_sync_payload = payload
+        self.sync_tick.emit(payload)
+
     def _start_polling(self):
         self._running = True
         self._latest_sync_payload = None

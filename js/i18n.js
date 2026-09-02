@@ -42,6 +42,55 @@ const KL_TRANSLATIONS = {
     unsubscribeQuestion: 'Confirmer la résiliation de votre abonnement KaronlineLive ?',
     downloadTitle: 'Espace Téléchargements',
     accountTitle: 'Se connecter',
+    mobileTagline: 'Le site de karaoké & animation',
+    mobilePitch: 'Une nouvelle façon de vivre le karaoké',
+    participate: 'Participer',
+    featureKaraokeTitle: 'Karaoké pro',
+    featureKaraokeBody: 'Gestion complète des chansons, tonalités, favoris et file d’attente.',
+    featureScreenTitle: 'Double écran',
+    featureScreenBody: 'Écran KJ + écran public indépendants.',
+    featureAutoTitle: 'Mode KJ auto',
+    featureAutoBody: 'Enchaînement automatique avec break configurable.',
+    featureGroupTitle: 'Solo ou groupe',
+    featureGroupBody: 'Parfait pour chanteurs solo, duos ou groupes.',
+    catalogueTitle: 'Choisissez votre chanson',
+    changeHost: 'Changer d’hôte',
+    leaveSession: 'Se déconnecter de la session',
+    searchLabel: 'Rechercher un titre ou un artiste',
+    searchPlaceholder: 'Ex. Queen, Adele...',
+    noResults: 'Aucun titre ne correspond à votre recherche.',
+    requestEyebrow: 'Demande de chanson',
+    requestTitle: 'Préparons votre passage',
+    singer: 'Chanteur',
+    artist: 'Artiste',
+    songTitle: 'Titre',
+    key: 'Tonalité',
+    send: 'Envoyer',
+    hostConnectEyebrow: 'Connexion',
+    hostConnectTitle: 'Rejoindre un hôte KaronlineBox',
+    hostConnectHelp: 'Demandez à votre animateur le nom de session qu’il a choisi (ex. soiree-marc), puis tapez-le ici.',
+    sessionNameLabel: 'Nom de session',
+    hostConnectSubmit: 'Se connecter',
+    connecting: 'Connexion...',
+    hostConnectedSession: 'Connecté à la session :',
+    hostConnectedTo: 'Connecté à :',
+    hostNotConnected: 'Non connecté à un hôte',
+    sessionNotFound: '❌ Nom de session introuvable. Vérifiez avec votre animateur.',
+    connectionFailed: '❌ Connexion impossible. Réessayez.',
+    catalogueLocked: '🔒 Connectez-vous à votre compte KJ pour accéder au catalogue.',
+    catalogueNoHost: '🔌 Connectez-vous à un hôte KaronlineBox pour voir son catalogue.',
+    sessionEnded: '⚠️ Cette session est terminée. Entrez le nom d’une nouvelle session pour continuer.',
+    serverUnavailable: '⚠️ Serveur indisponible. Vérifiez que KaronlineBox et le tunnel de votre hôte sont actifs.',
+    lanUnavailable: '⚠️ Serveur LAN indisponible. Assurez-vous que le serveur est lancé.',
+    requestInvalid: 'Erreur : renseignez le chanteur, l’artiste et une tonalité de -6 à +6.',
+    requestSending: 'Envoi de votre demande...',
+    requestReceived: 'Demande reçue ! Retour au catalogue...',
+    requestServerDown: '❌ Serveur LAN indisponible. Vérifiez que le serveur est lancé.',
+    boxNotActive: '❌ KaronlineBox non actif. Lancez l’application d’abord.',
+    serverError: 'Erreur serveur. Veuillez réessayer.',
+    networkError: 'Le serveur est inaccessible. Vérifiez votre connexion réseau.',
+    songsCount: 'titre',
+    songsCountPlural: 'titres',
   },
   en: {
     aboutTitle: 'About Us',
@@ -84,6 +133,55 @@ const KL_TRANSLATIONS = {
     unsubscribeQuestion: 'Confirm cancellation of your KaronlineLive subscription?',
     downloadTitle: 'Downloads',
     accountTitle: 'Sign in',
+    mobileTagline: 'The karaoke & entertainment site',
+    mobilePitch: 'A new way to experience karaoke',
+    participate: 'Join a session',
+    featureKaraokeTitle: 'Professional karaoke',
+    featureKaraokeBody: 'Full management of songs, keys, favourites and the queue.',
+    featureScreenTitle: 'Dual screen',
+    featureScreenBody: 'Independent KJ screen and public screen.',
+    featureAutoTitle: 'Auto KJ mode',
+    featureAutoBody: 'Automatic playback with a configurable break.',
+    featureGroupTitle: 'Solo or group',
+    featureGroupBody: 'Perfect for solo singers, duos or groups.',
+    catalogueTitle: 'Choose your song',
+    changeHost: 'Change host',
+    leaveSession: 'Leave the session',
+    searchLabel: 'Search for a song or artist',
+    searchPlaceholder: 'e.g. Queen, Adele...',
+    noResults: 'No song matches your search.',
+    requestEyebrow: 'Song request',
+    requestTitle: 'Let us prepare your performance',
+    singer: 'Singer',
+    artist: 'Artist',
+    songTitle: 'Title',
+    key: 'Key',
+    send: 'Send',
+    hostConnectEyebrow: 'Sign in',
+    hostConnectTitle: 'Join a KaronlineBox host',
+    hostConnectHelp: 'Ask your host for the session name they chose (e.g. soiree-marc), then type it here.',
+    sessionNameLabel: 'Session name',
+    hostConnectSubmit: 'Connect',
+    connecting: 'Connecting...',
+    hostConnectedSession: 'Connected to session:',
+    hostConnectedTo: 'Connected to:',
+    hostNotConnected: 'Not connected to a host',
+    sessionNotFound: '❌ Session name not found. Please check with your host.',
+    connectionFailed: '❌ Connection failed. Please try again.',
+    catalogueLocked: '🔒 Sign in to your KJ account to access the catalogue.',
+    catalogueNoHost: '🔌 Connect to a KaronlineBox host to see their catalogue.',
+    sessionEnded: '⚠️ This session has ended. Enter a new session name to continue.',
+    serverUnavailable: '⚠️ Server unavailable. Check that KaronlineBox and your host tunnel are running.',
+    lanUnavailable: '⚠️ LAN server unavailable. Make sure the server is running.',
+    requestInvalid: 'Error: enter the singer, the artist and a key between -6 and +6.',
+    requestSending: 'Sending your request...',
+    requestReceived: 'Request received! Returning to the catalogue...',
+    requestServerDown: '❌ LAN server unavailable. Check that the server is running.',
+    boxNotActive: '❌ KaronlineBox is not running. Start the application first.',
+    serverError: 'Server error. Please try again.',
+    networkError: 'The server is unreachable. Check your network connection.',
+    songsCount: 'song',
+    songsCountPlural: 'songs',
   },
 };
 
@@ -176,6 +274,12 @@ function applyKaronlineLanguage() {
     const text = klText(element.dataset.i18n);
     if (text) element.textContent = text;
   });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((element) => {
+    element.placeholder = klText(element.dataset.i18nPlaceholder);
+  });
+  document.querySelectorAll('[data-language]').forEach((button) => {
+    button.setAttribute('aria-pressed', String(button.dataset.language === language));
+  });
   document.querySelectorAll('[data-i18n-aria]').forEach((element) => {
     element.setAttribute('aria-label', KL_ARIA_LABELS[language][element.dataset.i18nAria]);
   });
@@ -214,6 +318,14 @@ document.querySelectorAll('[data-language-choice]').forEach((button) => {
     localStorage.setItem(KL_LANGUAGE_KEY, button.dataset.languageChoice);
     applyKaronlineLanguage();
     document.querySelector('#language-dialog')?.close();
+    window.dispatchEvent(new Event('karonline-language-changed'));
+  });
+});
+
+document.querySelectorAll('[data-language]').forEach((button) => {
+  button.addEventListener('click', () => {
+    localStorage.setItem(KL_LANGUAGE_KEY, button.dataset.language);
+    applyKaronlineLanguage();
     window.dispatchEvent(new Event('karonline-language-changed'));
   });
 });
