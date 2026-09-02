@@ -94,7 +94,12 @@
     .register-trigger { inset: 3.3% auto auto 49.1%; width: 9.1%; height: 5.9%; }
     .login-trigger { inset: 3.3% auto auto 58.9%; width: 9.3%; height: 5.9%; }
     .download-nav-trigger { inset: 3.3% auto auto 68.9%; width: 9.3%; height: 5.9%; }
-    .trial-trigger { inset: 3.3% auto auto 78.9%; width: 10.1%; height: 5.9%; }
+    .trial-trigger { top: 3.3%; left: 84.1%; width: 11.1%; height: 5.9%; }
+
+    html[lang="en"] .trial-trigger {
+      left: 81%;
+      width: 10.5%;
+    }
 
     .logout-trigger {
       background: #000;
@@ -171,16 +176,17 @@
       border: 0;
       border-radius: 6px;
       cursor: pointer;
-      inset: 3.3% auto auto 93.2%;
+      top: 3.3%;
+      left: 95.8%;
       padding: 0;
       position: absolute;
-      width: 3.4%;
+      width: 3.7%;
       height: 5.9%;
       z-index: 2;
     }
 
     html[lang="en"] .language-globe-trigger {
-      left: 89.5%;
+      left: 92%;
     }
 
     .language-globe-trigger:hover { background: rgba(255, 255, 255, .08); }
