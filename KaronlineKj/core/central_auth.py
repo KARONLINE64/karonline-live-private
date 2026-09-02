@@ -32,6 +32,7 @@ USER_MESSAGES = {
     "CARD INVALID": "Numéro de carte invalide.",
     "BAD REQUEST": "Requête incomplète.",
     "ALREADY_CONNECTED": "Ce compte est déjà connecté sur un autre appareil ou sur le site.",
+    "SUBSCRIPTION CANCELLED": "Cet abonnement a été résilié. Contactez KaronlineLive pour le réactiver.",
 }
 
 

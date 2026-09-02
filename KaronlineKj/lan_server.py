@@ -716,6 +716,9 @@ class RequestHandler(BaseHTTPRequestHandler):
         if self.path == "/auth/logout":
             self._auth_logout()
             return
+        if self.path == "/auth/unsubscribe":
+            self._auth_unsubscribe()
+            return
         if self.path == "/session/register":
             self._register_session()
             return
@@ -924,6 +927,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             print(f"LOGIN FAILED = {email}", flush=True)
             self._send_json(401, {"error": "WRONG CREDENTIALS"})
             return
+        if not record.get("subscribed", True):
+            self._send_json(403, {"error": "SUBSCRIPTION CANCELLED"})
+            return
         if not record.get("verified", False):
             print(f"LOGIN BLOCKED UNTIL VERIFICATION = {email}", flush=True)
             self._send_json(403, {"error": "EMAIL NOT VERIFIED"})
@@ -946,6 +952,22 @@ class RequestHandler(BaseHTTPRequestHandler):
         if header.startswith("Bearer "):
             auth_revoke_token(header[7:].strip())
         self._send_json(200, {"status": "ok"})
+
+    def _auth_unsubscribe(self):
+        email = self._bearer_email()
+        if not email:
+            self._send_json(401, {"error": "AUTH REQUIRED"})
+            return
+        with _AUTH_LOCK:
+            record = _accounts().get(email)
+            if record is None:
+                self._send_json(404, {"error": "EMAIL NOT FOUND"})
+                return
+            record["subscribed"] = False
+            record["unsubscribed_at"] = int(time.time())
+            _save_json(ACCOUNTS_PATH, _accounts())
+            auth_revoke_tokens_for_email(email)
+        self._send_json(200, {"status": "unsubscribed"})
 
     def _auth_forgot(self):
         try:

@@ -121,6 +121,21 @@
       outline-offset: 2px;
     }
 
+    .unsubscribe-trigger {
+      background: transparent;
+      border: 0;
+      color: #ff8c9f;
+      cursor: pointer;
+      font: 500 clamp(7px, .72vw, 10px) 'DM Sans', sans-serif;
+      inset: 10.5% auto auto 61%;
+      padding: 0;
+      position: absolute;
+      width: 10%;
+      z-index: 1;
+    }
+
+    .unsubscribe-trigger:hover { color: #ffbdc8; }
+
     .account-email-flashy {
       color: #00ffe1;
       font: 700 clamp(8px, 1.05vw, 15px) 'DM Sans', sans-serif;
@@ -149,6 +164,32 @@
     .download-trigger:focus-visible {
       outline: 3px solid #fff;
       outline-offset: 3px;
+    }
+
+    .language-switcher {
+      align-items: center;
+      display: flex;
+      gap: 3px;
+      inset: 11.5% auto auto 85.8%;
+      position: absolute;
+      z-index: 2;
+    }
+
+    .language-switcher button {
+      background: #07131d;
+      border: 1px solid #387a90;
+      border-radius: 3px;
+      color: #d8dee5;
+      cursor: pointer;
+      font: 700 clamp(7px, .72vw, 11px) 'DM Sans', sans-serif;
+      min-width: 27px;
+      padding: 3px 4px;
+    }
+
+    .language-switcher button[aria-pressed="true"] {
+      background: #145cff;
+      border-color: #65d5ff;
+      color: #fff;
     }
     
     .download-status {
@@ -264,6 +305,27 @@
         color: var(--blue, #145cff);
       }
 
+      .mobile-language-switcher {
+        display: flex;
+        gap: 6px;
+      }
+
+      .mobile-language-switcher button {
+        background: #07131d;
+        border: 1px solid #387a90;
+        border-radius: 3px;
+        color: #d8dee5;
+        cursor: pointer;
+        font: 700 12px 'DM Sans', sans-serif;
+        min-width: 36px;
+        padding: 6px 8px;
+      }
+
+      .mobile-language-switcher button[aria-pressed="true"] {
+        background: #145cff;
+        color: #fff;
+      }
+
       .mobile-home .tagline {
         color: #e80055;
         font-size: 12px;
@@ -344,10 +406,15 @@
       <button id="bundle-trigger" class="bundle-trigger" type="button" data-open-dialog="bundle-dialog" aria-label="Découvrir l'offre bundle"></button>
       <button id="register-trigger" class="register-trigger" type="button" data-open-auth="register-dialog" aria-label="S'abonner"></button>
       <button id="login-trigger" class="login-trigger" type="button" data-open-auth="login-dialog" data-auth="guest" aria-label="Se connecter"></button>
-      <button id="logout-trigger" class="logout-trigger" type="button" data-auth="member" data-logout aria-label="Se déconnecter">Se déconnecter</button>
+      <button id="logout-trigger" class="logout-trigger" type="button" data-auth="member" data-logout aria-label="Se déconnecter" data-i18n="logout">Se déconnecter</button>
+      <button id="unsubscribe-trigger" class="unsubscribe-trigger" type="button" data-auth="member" data-open-dialog="unsubscribe-dialog" aria-label="Se désabonner" data-i18n="unsubscribeTitle">Se désabonner</button>
       <button id="download-nav-trigger" class="download-nav-trigger" type="button" data-open-dialog="downloads-dialog" aria-label="Téléchargements"></button>
       <button id="trial-trigger" class="trial-trigger" type="button" data-open-dialog="trial-dialog" aria-label="Essai gratuit"></button>
       <span class="account-email-flashy" data-auth="member" data-account-email></span>
+      <div class="language-switcher" aria-label="Choix de langue">
+        <button type="button" data-language="fr" aria-pressed="true">FR</button>
+        <button type="button" data-language="en" aria-pressed="false">EN</button>
+      </div>
       <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
     </div>
     <div id="download-status" class="download-status" aria-live="polite"></div>
@@ -356,6 +423,10 @@
     <div>
       <p class="brand-row">Karonline<span>Live</span></p>
       <p class="tagline">Le site de karaoké &amp; animation</p>
+    </div>
+    <div class="mobile-language-switcher" aria-label="Choix de langue">
+      <button type="button" data-language="fr" aria-pressed="true">FR</button>
+      <button type="button" data-language="en" aria-pressed="false">EN</button>
     </div>
     <p class="pitch">Une nouvelle façon de vivre le karaoké</p>
     <h1>Karonline<span>Box</span></h1>
@@ -538,6 +609,17 @@
       </div>
     </form>
   </dialog>
+  <dialog id="unsubscribe-dialog" class="auth-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="unsubscribe-dialog" aria-label="Fermer">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2 data-i18n="unsubscribeTitle">Se désabonner</h2>
+    <p data-i18n="unsubscribeText" style="color:#d8dee5;font-size:14px;margin-bottom:18px;">Votre compte sera désactivé et toutes vos sessions seront fermées. Cette action est réversible uniquement en contactant KaronlineLive.</p>
+    <output id="unsubscribe-result" class="request-result" aria-live="polite"></output>
+    <div class="request-actions">
+      <button id="unsubscribe-confirm" class="button button-primary" type="button" data-i18n="unsubscribeConfirm">Confirmer le désabonnement</button>
+      <button class="button button-primary" type="button" data-close-dialog="unsubscribe-dialog" data-i18n="cancel">Annuler</button>
+    </div>
+  </dialog>
   <dialog id="forgot-password-dialog" class="auth-dialog">
     <button class="dialog-close" type="button" data-close-dialog="forgot-password-dialog" aria-label="Fermer">×</button>
     <p class="eyebrow">KaronlineLive</p><h2>Récupérer mon compte</h2>
@@ -567,5 +649,6 @@
   <script src="js/config.js?v=13"></script>
   <script src="js/app.js?v=13"></script>
   <script src="js/auth.js?v=7"></script>
+  <script src="js/i18n.js?v=1"></script>
 </body>
 </html>

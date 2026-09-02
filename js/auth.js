@@ -24,6 +24,7 @@ const AUTH_ERRORS = {
   'BAD REQUEST': 'Requête incomplète.',
   'TOKEN INVALID': 'Session expirée. Reconnectez-vous.',
   'ALREADY_CONNECTED': 'Ce compte est déjà connecté ailleurs.',
+  'SUBSCRIPTION CANCELLED': 'Cet abonnement a été résilié. Contactez KaronlineLive pour le réactiver.',
   'EMAIL NOT FOUND': 'Aucun compte avec cette adresse mail.',
 };
 
@@ -326,6 +327,25 @@ async function handleLogout() {
   if (reconnect) document.querySelector('#login-dialog')?.showModal();
 }
 
+async function handleUnsubscribe() {
+  if (!window.confirm(typeof klText === 'function'
+    ? klText('unsubscribeQuestion')
+    : 'Confirmer la résiliation de votre abonnement KaronlineLive ?')) return;
+
+  const state = authReadState();
+  try {
+    await authFetch('/auth/unsubscribe', {}, state.token);
+    authClearSession();
+    document.querySelector('#unsubscribe-dialog')?.close();
+    authRenderUI();
+    window.alert(typeof klText === 'function'
+      ? klText('unsubscribeDone')
+      : 'Votre abonnement a été résilié. Vous êtes maintenant déconnecté.');
+  } catch (error) {
+    authFeedback('unsubscribe-result', error.message, true);
+  }
+}
+
 function initAuthPage() {
   document.querySelectorAll('[data-open-auth]').forEach((opener) => {
     opener.addEventListener('click', (event) => {
@@ -364,6 +384,8 @@ function initAuthPage() {
   document.querySelectorAll('[data-logout]').forEach((button) => {
     button.addEventListener('click', handleLogout);
   });
+  document.querySelector('#unsubscribe-confirm')
+    ?.addEventListener('click', handleUnsubscribe);
   authRenderUI();
   authValidateStoredSession();
 }
