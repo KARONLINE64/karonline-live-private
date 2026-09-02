@@ -75,7 +75,7 @@ const KL_TRANSLATIONS = {
     termsRead: 'I have read the Terms of Use.',
     licenseAccept: 'I accept the KaronlineBox User License Agreement.',
     downloadConfirm: 'Download KaronlineBox',
-    unsubscribeTitle: 'Cancel subscription',
+    unsubscribeTitle: 'Unsubscribe',
     unsubscribeText: 'Your account will be deactivated and all of your sessions will be closed. This action can only be reversed by contacting KaronlineLive.',
     unsubscribeConfirm: 'Confirm cancellation',
     cancel: 'Cancel',
