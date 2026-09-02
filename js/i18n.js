@@ -76,12 +76,16 @@ function klText(key) {
 function applyKaronlineLanguage() {
   const language = klLanguage();
   document.documentElement.lang = language;
+  document.title = language === 'en' ? 'KaronlineLive - Karaoke & Entertainment' : 'KaronlineLive';
   document.querySelectorAll('[data-i18n]').forEach((element) => {
     const text = klText(element.dataset.i18n);
     if (text) element.textContent = text;
   });
   document.querySelectorAll('[data-language]').forEach((button) => {
     button.setAttribute('aria-pressed', String(button.dataset.language === language));
+  });
+  document.querySelectorAll('[data-language-status]').forEach((element) => {
+    element.textContent = language === 'en' ? 'English interface' : 'Français';
   });
   document.querySelectorAll('[data-logout]').forEach((button) => {
     button.textContent = klText('logout');

@@ -191,6 +191,16 @@
       border-color: #65d5ff;
       color: #fff;
     }
+
+    .language-status {
+      color: #65d5ff;
+      font: 600 clamp(7px, .65vw, 10px) 'DM Sans', sans-serif;
+      inset: 9.6% auto auto 85.6%;
+      position: absolute;
+      text-align: center;
+      width: 13%;
+      z-index: 2;
+    }
     
     .download-status {
       position: absolute;
@@ -415,6 +425,7 @@
         <button type="button" data-language="fr" aria-pressed="true">FR</button>
         <button type="button" data-language="en" aria-pressed="false">EN</button>
       </div>
+      <span class="language-status" data-language-status>Français</span>
       <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
     </div>
     <div id="download-status" class="download-status" aria-live="polite"></div>
