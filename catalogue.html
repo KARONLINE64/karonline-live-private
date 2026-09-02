@@ -28,18 +28,18 @@
     </nav>
   </header>
   <main class="catalogue-page">
-    <section class="page-heading"><p class="eyebrow">KaronlineLive / Catalogue</p><h1>Choisissez votre chanson</h1><p>Une simulation locale du catalogue de test. Selectionnez un titre pour preparer une demande.</p><p class="host-status"></p><button class="host-change-link" type="button" data-change-host>Changer d'hôte</button><button class="host-change-link host-disconnect-link" type="button" data-disconnect-host>Se déconnecter de la session</button></section>
-    <section class="catalogue-toolbar"><label for="search">Rechercher un titre ou un artiste</label><input id="search" type="search" placeholder="Ex. Queen, Adele..." autocomplete="off"><span id="result-count" aria-live="polite"></span></section>
-    <section class="song-list" aria-label="Titres disponibles"><div id="songs" class="songs-grid"></div><p id="empty-state" class="empty-state" hidden>Aucun titre ne correspond a votre recherche.</p></section>
+    <section class="page-heading"><p class="eyebrow">KaronlineLive / Catalogue</p><h1 data-i18n="catalogueTitle">Choisissez votre chanson</h1><p>Une simulation locale du catalogue de test. Selectionnez un titre pour preparer une demande.</p><p class="host-status"></p><button class="host-change-link" type="button" data-change-host data-i18n="changeHost">Changer d'hôte</button><button class="host-change-link host-disconnect-link" type="button" data-disconnect-host data-i18n="leaveSession">Se déconnecter de la session</button></section>
+    <section class="catalogue-toolbar"><label for="search" data-i18n="searchLabel">Rechercher un titre ou un artiste</label><input id="search" type="search" placeholder="Ex. Queen, Adele..." data-i18n-placeholder="searchPlaceholder" autocomplete="off"><span id="result-count" aria-live="polite"></span></section>
+    <section class="song-list" aria-label="Titres disponibles"><div id="songs" class="songs-grid"></div><p id="empty-state" class="empty-state" data-i18n="noResults" hidden>Aucun titre ne correspond a votre recherche.</p></section>
   </main>
   <dialog id="request-dialog" class="request-dialog">
     <form id="request-form">
       <button class="dialog-close" type="button" data-close-dialog="request-dialog" aria-label="Fermer">×</button>
-      <p class="eyebrow">Demande de chanson</p><h2>Preparons votre passage</h2>
-      <label for="singer">Chanteur</label><input id="singer" name="singer" type="text" required>
-      <label for="artist">Artiste</label><input id="artist" name="artist" type="text" required>
-      <label for="title">Titre</label><input id="title" name="title" type="text" required>
-      <label for="key">Tonalite</label>
+      <p class="eyebrow" data-i18n="requestEyebrow">Demande de chanson</p><h2 data-i18n="requestTitle">Preparons votre passage</h2>
+      <label for="singer" data-i18n="singer">Chanteur</label><input id="singer" name="singer" type="text" required>
+      <label for="artist" data-i18n="artist">Artiste</label><input id="artist" name="artist" type="text" required>
+      <label for="title" data-i18n="songTitle">Titre</label><input id="title" name="title" type="text" required>
+      <label for="key" data-i18n="key">Tonalite</label>
       <select id="key" name="key">
         <option value="-6">-6</option><option value="-5">-5</option><option value="-4">-4</option>
         <option value="-3">-3</option><option value="-2">-2</option><option value="-1">-1</option>
@@ -48,8 +48,8 @@
         <option value="4">+4</option><option value="5">+5</option><option value="6">+6</option>
       </select>
       <div class="request-actions">
-        <button class="button button-primary submit-button" type="submit">Envoyer</button>
-        <button class="button button-primary" type="button" data-close-dialog="request-dialog">Annuler</button>
+        <button class="button button-primary submit-button" type="submit" data-i18n="send">Envoyer</button>
+        <button class="button button-primary" type="button" data-close-dialog="request-dialog" data-i18n="cancel">Annuler</button>
       </div>
       <output id="request-result" class="request-result" aria-live="polite"></output>
     </form>
@@ -57,13 +57,13 @@
   <dialog id="host-connect-dialog" class="host-connect-dialog">
     <form id="host-connect-form">
       <button class="dialog-close" type="button" data-close-dialog="host-connect-dialog" aria-label="Fermer">×</button>
-      <p class="eyebrow">Connexion</p>
-      <h2>Rejoindre un hôte KaronlineBox</h2>
-      <p>Demandez à votre animateur le <strong>nom de session</strong> qu'il a choisi (ex. soiree-marc), puis tapez-le ici.</p>
-      <label for="host-url-input">Nom de session</label>
+      <p class="eyebrow" data-i18n="hostConnectEyebrow">Connexion</p>
+      <h2 data-i18n="hostConnectTitle">Rejoindre un hôte KaronlineBox</h2>
+      <p data-i18n="hostConnectHelp">Demandez à votre animateur le <strong>nom de session</strong> qu'il a choisi (ex. soiree-marc), puis tapez-le ici.</p>
+      <label for="host-url-input" data-i18n="sessionNameLabel">Nom de session</label>
       <input id="host-url-input" type="text" inputmode="text" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="soiree-marc" required autocomplete="off">
       <p class="host-connect-error" aria-live="polite"></p>
-      <button class="button button-primary" type="submit">Se connecter</button>
+      <button class="button button-primary" type="submit" data-i18n="hostConnectSubmit">Se connecter</button>
     </form>
   </dialog>
   <dialog id="register-dialog" class="auth-dialog">
@@ -204,8 +204,9 @@
     </div>
   </div>
   <footer class="site-footer"><span>KaronlineLive</span><span>Catalogue du serveur LAN</span></footer>
+  <script src="js/i18n.js?v=3"></script>
   <script src="js/config.js?v=13"></script>
-  <script src="js/app.js?v=13"></script>
+  <script src="js/app.js?v=14"></script>
   <script src="js/auth.js?v=7"></script>
 </body>
 </html>
