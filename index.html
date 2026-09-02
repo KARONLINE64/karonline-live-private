@@ -171,10 +171,10 @@
       border: 0;
       border-radius: 6px;
       cursor: pointer;
-      inset: 3.3% auto auto 93.1%;
+      inset: 3.3% auto auto 89.9%;
       padding: 0;
       position: absolute;
-      width: 3.8%;
+      width: 3.2%;
       height: 5.9%;
       z-index: 2;
     }
@@ -185,6 +185,20 @@
       outline: 2px solid #fff;
       outline-offset: 2px;
     }
+
+    .language-dialog {
+      background: #080e15;
+      border: 1px solid #387a90;
+      color: #f4f7fb;
+      padding: 24px;
+      width: min(350px, calc(100vw - 32px));
+    }
+
+    .language-dialog::backdrop { background: rgba(0, 0, 0, .78); }
+
+    .language-options { display: flex; gap: 10px; margin-top: 18px; }
+
+    .language-options button { flex: 1; }
 
     .terms-dialog {
       background: #080e15;
@@ -432,7 +446,7 @@
       <button id="download-nav-trigger" class="download-nav-trigger" type="button" data-open-dialog="downloads-dialog" data-i18n-aria="downloads" aria-label="Téléchargements"></button>
       <button id="trial-trigger" class="trial-trigger" type="button" data-open-dialog="trial-dialog" data-i18n-aria="trial" aria-label="Essai gratuit"></button>
       <span class="account-email-flashy" data-auth="member" data-account-email></span>
-      <button id="language-globe-trigger" class="language-globe-trigger" type="button" data-language-toggle aria-label="Passer le site en anglais" title="Passer le site en anglais"></button>
+      <button id="language-globe-trigger" class="language-globe-trigger" type="button" data-language-picker aria-label="Choisir la langue" title="Choisir la langue"></button>
       <button id="download-trigger" class="download-trigger" type="button" aria-label="Télécharger KaronlineBox pour Windows" title="Nécessite serveur LAN actif (python lan_server.py --port 8765)"></button>
     </div>
     <div id="download-status" class="download-status" aria-live="polite"></div>
@@ -600,6 +614,15 @@ By checking the two boxes below, the user confirms that they have read these Ter
     <div class="request-actions">
       <button id="license-download-confirm" class="button button-primary" type="button" disabled data-i18n="downloadConfirm">Télécharger KaronlineBox</button>
       <button class="button button-primary" type="button" data-close-dialog="download-license-dialog" data-i18n="cancel">Annuler</button>
+    </div>
+  </dialog>
+  <dialog id="language-dialog" class="language-dialog">
+    <button class="dialog-close" type="button" data-close-dialog="language-dialog" aria-label="Close">×</button>
+    <p class="eyebrow">KaronlineLive</p>
+    <h2>Language / Langue</h2>
+    <div class="language-options">
+      <button class="button button-primary" type="button" data-language-choice="fr">Français</button>
+      <button class="button button-primary" type="button" data-language-choice="en">English</button>
     </div>
   </dialog>
   <dialog id="catalogue-dialog" class="catalogue-dialog" aria-labelledby="catalogue-dialog-title">

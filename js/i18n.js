@@ -203,10 +203,17 @@ function applyKaronlineLanguage() {
   });
 }
 
-document.querySelectorAll('[data-language-toggle]').forEach((button) => {
+document.querySelectorAll('[data-language-picker]').forEach((button) => {
   button.addEventListener('click', () => {
-    localStorage.setItem(KL_LANGUAGE_KEY, klLanguage() === 'fr' ? 'en' : 'fr');
+    document.querySelector('#language-dialog')?.showModal();
+  });
+});
+
+document.querySelectorAll('[data-language-choice]').forEach((button) => {
+  button.addEventListener('click', () => {
+    localStorage.setItem(KL_LANGUAGE_KEY, button.dataset.languageChoice);
     applyKaronlineLanguage();
+    document.querySelector('#language-dialog')?.close();
     window.dispatchEvent(new Event('karonline-language-changed'));
   });
 });
