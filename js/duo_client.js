@@ -88,6 +88,10 @@
     syncInterval = setInterval(async () => {
       try {
         const res = await fetch(`${CENTRAL_API}/duo/status?code=${code}`);
+        if (res.status === 404) {
+          closeRemoteSession();
+          return;
+        }
         if (res.ok) {
           const data = await res.json();
           if (data.sync) {
@@ -107,6 +111,17 @@
         /* polling silencieux */
       }
     }, 350);
+  }
+
+  function closeRemoteSession() {
+    if (syncInterval) clearInterval(syncInterval);
+    if (frameInterval) clearInterval(frameInterval);
+    if (localStream) {
+      localStream.getTracks().forEach((track) => track.stop());
+      localStream = null;
+    }
+    alert('La session DUO a été fermée par l’hôte.');
+    window.location.href = 'index.html';
   }
 
   function updateSyncUI(sync) {
