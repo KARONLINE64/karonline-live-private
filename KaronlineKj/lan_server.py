@@ -707,65 +707,65 @@ class RequestHandler(BaseHTTPRequestHandler):
         self._send_json(404, {"error": "NOT FOUND"})
 
     def do_POST(self):
-        if self.path == "/auth/register":
+        path = urlparse(self.path).path.rstrip("/")
+        if path == "/auth/register":
             self._auth_register()
             return
-        if self.path == "/auth/verify":
+        if path == "/auth/verify":
             self._auth_verify()
             return
-        if self.path == "/auth/resend":
+        if path == "/auth/resend":
             self._auth_resend()
             return
-        if self.path == "/auth/login":
+        if path == "/auth/login":
             self._auth_login()
             return
-        if self.path == "/auth/forgot":
+        if path == "/auth/forgot":
             self._auth_forgot()
             return
-        if self.path == "/auth/reset":
+        if path == "/auth/reset":
             self._auth_reset()
             return
-        if self.path == "/auth/logout":
+        if path == "/auth/logout":
             self._auth_logout()
             return
-        if self.path == "/auth/unsubscribe":
+        if path == "/auth/unsubscribe":
             self._auth_unsubscribe()
             return
-        if self.path == "/session/register":
+        if path == "/session/register":
             self._register_session()
             return
-        if self.path == "/session/unregister":
+        if path == "/session/unregister":
             self._unregister_session()
             return
-        if self.path == "/duo/create":
+        if path == "/duo/create":
             self._duo_create()
             return
-        if self.path == "/duo/join":
+        if path == "/duo/join":
             self._duo_join()
             return
-        if self.path == "/duo/frame":
+        if path == "/duo/frame":
             self._duo_frame()
             return
-        if self.path == "/duo/sync":
+        if path == "/duo/sync":
             self._duo_sync()
             return
-        if self.path == "/duo/signal":
+        if path == "/duo/signal":
             self._duo_signal()
             return
-        if self.path == "/duo/close":
+        if path == "/duo/close":
             self._duo_close()
             return
-        if self.path == "/request-demand":
+        if path == "/request-demand":
             self._relay_demand()
             return
-        if self.path == "/relay/push":
+        if path == "/relay/push":
             self._relay_push_endpoint()
             return
-        path = urlparse(self.path).path
         if path.startswith("/session/") and path.endswith("/request-demand"):
             self._relay_mobile_demand(path)
             return
-        if self.path != "/request":
+        if path != "/request":
             self._send_json(404, {"error": "NOT FOUND"})
             return
 
