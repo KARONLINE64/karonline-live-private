@@ -1102,12 +1102,12 @@ class MainWindow(QMainWindow):
         box = self.live_box
         box.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         lay = QVBoxLayout(box)
-        lay.setContentsMargins(8, 4, 8, 4)
-        lay.setSpacing(1)
+        lay.setContentsMargins(8, 2, 8, 2)
+        lay.setSpacing(0)
         lab = QLabel("LIVE")
         lab.setObjectName("section")
-        lab.setStyleSheet("font-size:26px;font-weight:700;color:#00a7ff;")
-        lab.setMaximumHeight(34)
+        lab.setStyleSheet("font-size:20px;font-weight:700;color:#00a7ff;")
+        lab.setMaximumHeight(26)
         lay.addWidget(lab)
 
         self.current_song = QLabel("")
@@ -1134,12 +1134,12 @@ class MainWindow(QMainWindow):
         self.next_box = nb
         nb.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Maximum)
         nl = QVBoxLayout(nb)
-        nl.setContentsMargins(8, 4, 8, 4)
-        nl.setSpacing(1)
+        nl.setContentsMargins(8, 2, 8, 2)
+        nl.setSpacing(0)
         lab = QLabel("SUIVANT")
         lab.setObjectName("section")
-        lab.setStyleSheet("font-size:26px;font-weight:700;color:#00a7ff;")
-        lab.setMaximumHeight(34)
+        lab.setStyleSheet("font-size:20px;font-weight:700;color:#00a7ff;")
+        lab.setMaximumHeight(26)
         nl.addWidget(lab)
 
         self.next_singer = QLabel("")
@@ -1158,7 +1158,7 @@ class MainWindow(QMainWindow):
         # reserves margin-top/padding for a title area, wasting height.
         qb.setStyleSheet("margin-top:0px;padding:4px;")
         ql = QVBoxLayout(qb)
-        ql.setContentsMargins(10, 2, 10, 4)
+        ql.setContentsMargins(8, 0, 8, 2)
         ql.setSpacing(0)
 
         queue_header = QHBoxLayout()
@@ -1166,7 +1166,7 @@ class MainWindow(QMainWindow):
 
         queue_title = QLabel("FILE D'ATTENTE")
         queue_title.setObjectName("section")
-        queue_title.setStyleSheet("font-size:26px;")
+        queue_title.setStyleSheet("font-size:20px;")
         queue_header.addWidget(queue_title)
         queue_header.addStretch()
 
@@ -1221,8 +1221,8 @@ class MainWindow(QMainWindow):
                 color:#f1f4f7;
                 border:none;
                 border-bottom:1px solid #1d2a35;
-                padding:8px 6px;
-                font-size:14px;
+                padding:4px 6px;
+                font-size:12px;
                 font-weight:500;
             }
             QTableWidget::item {
@@ -4300,7 +4300,7 @@ class MainWindow(QMainWindow):
             )
             self.queue_list.setCellWidget(row, 7, menu_btn)
 
-            self.queue_list.setRowHeight(row, 26)
+            self.queue_list.setRowHeight(row, 22)
 
         # V29/V31/V32: intentionally no count beside FILE D'ATTENTE.
         self.queue_count_label.setText("")

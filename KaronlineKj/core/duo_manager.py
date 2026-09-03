@@ -114,6 +114,7 @@ class DuoSessionManager(QObject):
         self.webcam_capturer: DuoWebcamCapturer | None = None
         self._active_api_base: str = CENTRAL_API_BASE
         self._last_webcam_error = ""
+        self._guest_frame_seen = False
         self.audio_link = DuoAudioLink(
             CENTRAL_API_BASE,
             lambda: getattr(self.central_auth, "token", ""),
@@ -168,6 +169,7 @@ class DuoSessionManager(QObject):
         status, data = self._request_api("/duo/create", payload_dict=payload, method="POST", timeout=8)
         if status == 200:
             self.active_code = data.get("code", code)
+            self._guest_frame_seen = False
             qr_url = ""
             self._start_polling()
             self.start_webcam_if_available()
@@ -334,6 +336,11 @@ class DuoSessionManager(QObject):
                     if self.is_host:
                         guest_frame = data.get("guest_frame")
                         if guest_frame:
+                            if not self._guest_frame_seen:
+                                self._guest_frame_seen = True
+                                self.webcam_status_changed.emit(
+                                    "Webcam invitée reçue par l'hôte", True
+                                )
                             self.guest_frame_received.emit(guest_frame)
                     else:
                         host_frame = data.get("host_frame")
