@@ -102,6 +102,7 @@ class DuoSessionManager(QObject):
     sync_tick = Signal(dict)                # master clock payload
     guest_frame_received = Signal(str)     # base64 image string invité
     host_frame_received = Signal(str)      # base64 image string hôte
+    webcam_status_changed = Signal(str, bool)
 
     def __init__(self, central_auth=None):
         super().__init__()
@@ -112,6 +113,7 @@ class DuoSessionManager(QObject):
         self.is_connected: bool = False
         self.webcam_capturer: DuoWebcamCapturer | None = None
         self._active_api_base: str = CENTRAL_API_BASE
+        self._last_webcam_error = ""
         self.audio_link = DuoAudioLink(
             CENTRAL_API_BASE,
             lambda: getattr(self.central_auth, "token", ""),
@@ -211,7 +213,10 @@ class DuoSessionManager(QObject):
         if not getattr(self, "webcam_capturer", None):
             self.webcam_capturer = DuoWebcamCapturer(self)
             self.webcam_capturer.frame_ready.connect(self.send_webcam_frame)
-        self.webcam_capturer.start()
+        if self.webcam_capturer.start():
+            self.webcam_status_changed.emit("Webcam DUO active", True)
+        else:
+            self.webcam_status_changed.emit("Webcam DUO indisponible sur ce PC", False)
 
     def stop_webcam(self):
         if getattr(self, "webcam_capturer", None):
@@ -235,7 +240,16 @@ class DuoSessionManager(QObject):
         ).start()
 
     def _post_frame(self, payload: dict):
-        self._request_api("/duo/frame", payload_dict=payload, method="POST", timeout=3)
+        status, data = self._request_api("/duo/frame", payload_dict=payload, method="POST", timeout=3)
+        if status == 200:
+            self._last_webcam_error = ""
+            return
+        error = data.get("error", f"Erreur {status}")
+        if error != self._last_webcam_error:
+            self._last_webcam_error = error
+            self.webcam_status_changed.emit(
+                f"Envoi webcam DUO impossible ({status}) : {error}", False
+            )
 
     def close_session(self):
         """Ferme la session DUO en cours."""

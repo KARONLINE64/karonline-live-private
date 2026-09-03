@@ -105,6 +105,7 @@ class MainWindow(QMainWindow):
         self.duo_manager.sync_tick.connect(self._on_duo_sync_tick_received)
         self.duo_manager.audio_link.status_changed.connect(self._on_duo_audio_status)
         self.duo_manager.audio_link.error.connect(self._on_duo_audio_error)
+        self.duo_manager.webcam_status_changed.connect(self._on_duo_webcam_status)
 
         # Moniteur micro->casque en direct (retour vocal + EQ + reverb), partagé
         # avec le dialogue de configuration audio pour rester actif pendant le karaoké.
@@ -1610,6 +1611,14 @@ class MainWindow(QMainWindow):
         self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
         duo_form.addRow("STATUT INVITÉ", self.duo_guest_label)
 
+        self.duo_audio_label = QLabel("○ Audio DUO en attente d'un invité")
+        self.duo_audio_label.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
+        duo_form.addRow("AUDIO DUO", self.duo_audio_label)
+
+        self.duo_video_label = QLabel("○ Webcam DUO en attente")
+        self.duo_video_label.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
+        duo_form.addRow("WEBCAM DUO", self.duo_video_label)
+
         # Champ de saisie pour rejoindre une session en tant qu'invité Desktop
         self.duo_join_input = QLineEdit()
         self.duo_join_input.setPlaceholderText("Entrez le code hôte (ex: DUO-8492)")
@@ -1637,7 +1646,7 @@ class MainWindow(QMainWindow):
         )
         self.duo_join_btn.clicked.connect(self._join_duo_session_action)
 
-        self.duo_stop_btn = QPushButton("✕ FERMER / QUITTER")
+        self.duo_stop_btn = QPushButton("✕ FERMER LA SESSION")
         self.duo_stop_btn.setStyleSheet(
             "background:#3a151b;border:1px solid #e80055;border-radius:5px;"
             "padding:8px 14px;color:#ff6b6b;font-weight:700;font-size:13px;"
@@ -2714,7 +2723,10 @@ class MainWindow(QMainWindow):
             self.duo_code_label.setText(f"🟢 {code}")
             self.duo_start_btn.setEnabled(False)
             self.duo_join_btn.setEnabled(False)
+            self.duo_stop_btn.setText("✕ FERMER LA SESSION POUR TOUS")
             self.duo_stop_btn.setEnabled(True)
+            self.duo_audio_label.setText("○ Audio DUO en attente d'un invité")
+            self.duo_audio_label.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
             self.set_status(f"● Session DUO Hôte {code} démarrée", True)
             self.duo_qr_box.hide()
         else:
@@ -2746,6 +2758,7 @@ class MainWindow(QMainWindow):
             self.duo_guest_label.setText("🟢 Connecté à l'hôte")
             self.duo_start_btn.setEnabled(False)
             self.duo_join_btn.setEnabled(False)
+            self.duo_stop_btn.setText("✕ QUITTER LA SESSION")
             self.duo_stop_btn.setEnabled(True)
             self.session_start_btn.setEnabled(False)
             self.set_status(f"● {msg}", True)
@@ -2776,9 +2789,12 @@ class MainWindow(QMainWindow):
         self.duo_code_label.setText("○ Aucune session DUO active")
         self.duo_guest_label.setText("○ Aucun invité connecté")
         self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:15px;font-weight:600;")
+        self.duo_audio_label.setText("○ Audio DUO arrêté")
+        self.duo_audio_label.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
         self.duo_qr_box.hide()
         self.duo_start_btn.setEnabled(True)
         self.duo_join_btn.setEnabled(True)
+        self.duo_stop_btn.setText("✕ FERMER LA SESSION")
         self.duo_stop_btn.setEnabled(False)
         self.session_start_btn.setEnabled(True)
         if self.duo_overlay:
@@ -2858,10 +2874,19 @@ class MainWindow(QMainWindow):
             self._render_duo_frame_on_label(self.public_duo_webcam_label, frame_data)
 
     def _on_duo_audio_status(self, message: str):
+        self.duo_audio_label.setText(f"● {message}")
+        self.duo_audio_label.setStyleSheet("color:#4ade80;font-size:13px;font-weight:600;")
         self.set_status(f"● {message}", True)
 
     def _on_duo_audio_error(self, message: str):
+        self.duo_audio_label.setText(f"● {message}")
+        self.duo_audio_label.setStyleSheet("color:#ff6b6b;font-size:13px;font-weight:600;")
         self.set_status(f"● {message}", False)
+
+    def _on_duo_webcam_status(self, message: str, ok: bool):
+        self.duo_video_label.setText(f"● {message}")
+        color = "#4ade80" if ok else "#ff6b6b"
+        self.duo_video_label.setStyleSheet(f"color:{color};font-size:13px;font-weight:600;")
 
     def _on_duo_host_frame_received(self, frame_data: str):
         if self.duo_overlay and not self.duo_manager.is_host:

@@ -119,7 +119,14 @@ class DuoAudioLink(QObject):
         self._loop = asyncio.get_running_loop()
         self._stop_event = asyncio.Event()
         credentials = await self._request(f"/duo/turn-credentials?code={self._code}")
-        ice_servers = [RTCIceServer(urls=credentials["urls"], username=credentials["username"], credential=credentials["credential"])]
+        ice_servers = [
+            RTCIceServer(urls="stun:stun.l.google.com:19302"),
+            RTCIceServer(
+                urls=credentials["urls"],
+                username=credentials["username"],
+                credential=credentials["credential"],
+            ),
+        ]
         peer = RTCPeerConnection(RTCConfiguration(iceServers=ice_servers))
         audio_queue: asyncio.Queue = asyncio.Queue(maxsize=12)
 
