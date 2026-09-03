@@ -42,10 +42,16 @@ if (-not $existingTunnel) {
 }
 
 Write-Host "Verification de l'API publique..." -ForegroundColor Cyan
-try {
-    $response = Invoke-WebRequest -Uri "https://api.karonlinelive.com/catalogue" -UseBasicParsing -TimeoutSec 20
-    Write-Host "API publique OK: HTTP $($response.StatusCode)" -ForegroundColor Green
-} catch {
-    Write-Host "API publique non disponible: $($_.Exception.Message)" -ForegroundColor Yellow
-    exit 2
+for ($attempt = 1; $attempt -le 12; $attempt++) {
+    try {
+        $response = Invoke-WebRequest -Uri "https://api.karonlinelive.com/catalogue" -UseBasicParsing -TimeoutSec 8
+        Write-Host "API publique OK: HTTP $($response.StatusCode)" -ForegroundColor Green
+        exit 0
+    } catch {
+        if ($attempt -lt 12) {
+            Start-Sleep -Seconds 3
+        }
+    }
 }
+Write-Host "API publique non disponible apres le demarrage du tunnel." -ForegroundColor Yellow
+exit 2
