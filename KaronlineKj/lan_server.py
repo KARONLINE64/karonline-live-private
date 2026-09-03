@@ -659,33 +659,30 @@ class RequestHandler(BaseHTTPRequestHandler):
                 Path.cwd().parent,
                 Path("C:/Temp/KaronlineBox_Setup"),
             ]
-            # La version la plus recente prime : chaque setup publie porte son numero.
-            versioned = []
-            for directory in search_dirs:
-                try:
-                    versioned.extend(directory.glob("KaronlineBox_V*_Setup.exe"))
-                except OSError:
-                    continue
-
+            # Priorité 1 : le setup complet généré karonlinebox_setup.exe (72 Mo)
+            setup_paths = [
+                self.server.library.parent / "KaronlineKj" / "karonlinebox_setup.exe",
+                self.server.library.parent / "downloads" / "KaronlineBox_V90_Setup.exe",
+                Path.cwd() / "karonlinebox_setup.exe",
+                Path.cwd().parent / "karonlinebox_setup.exe",
+            ]
             setup_file = None
-            if versioned:
-                setup_file = max(versioned, key=lambda item: item.stat().st_mtime)
-            else:
-                # Chercher le fichier setup dans les emplacements courants
-                setup_paths = [
-                    self.server.library.parent / "KaronlineBox_Install" / "KaronlineBox_Installer.exe",
-                    self.server.library.parent / "KaronlineKj" / "karonlinebox_setup.exe",
-                    Path.cwd() / "karonlinebox_setup.exe",
-                    Path.cwd().parent / "karonlinebox_setup.exe",
-                    self.server.library.parent / "KaronlineKj" / "setup.exe",
-                    Path.cwd() / "setup.exe",
-                    Path.cwd().parent / "setup.exe",
-                ]
-                for path_candidate in setup_paths:
-                    if path_candidate.is_file():
-                        setup_file = path_candidate
-                        break
-            
+            for path_candidate in setup_paths:
+                if path_candidate.is_file():
+                    setup_file = path_candidate
+                    break
+
+            if setup_file is None:
+                # Fallback : chercher les setup versionnés
+                versioned = []
+                for directory in search_dirs:
+                    try:
+                        versioned.extend(directory.glob("KaronlineBox_V*_Setup.exe"))
+                    except OSError:
+                        continue
+                if versioned:
+                    setup_file = max(versioned, key=lambda item: item.stat().st_mtime)
+
             if setup_file is None:
                 self._send_json(404, {"error": "KaronlineBox installer not found"})
                 return
