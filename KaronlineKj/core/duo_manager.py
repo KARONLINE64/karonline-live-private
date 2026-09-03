@@ -10,6 +10,7 @@ import random
 import string
 import threading
 import time
+import urllib.error
 import urllib.request
 from PySide6.QtCore import QObject, Signal
 
@@ -161,6 +162,14 @@ class DuoSessionManager(QObject):
                 self.start_webcam_if_available()
                 self.session_created.emit(self.active_code, qr_url)
                 return True, self.active_code, qr_url
+        except urllib.error.HTTPError as exc:
+            try:
+                err_body = exc.read().decode("utf-8", errors="replace")
+                err_data = json.loads(err_body)
+                err_msg = err_data.get("error", str(exc))
+            except Exception:
+                err_msg = str(exc)
+            return False, f"Serveur central ({exc.code}) : {err_msg}", ""
         except Exception as exc:
             return False, f"Impossible de créer la session DUO : {exc}", ""
 
@@ -200,6 +209,14 @@ class DuoSessionManager(QObject):
                 self.start_webcam_if_available()
                 self.audio_link.start(self.active_code, is_host=False)
                 return True, f"Connecté à la session {clean_code}"
+        except urllib.error.HTTPError as exc:
+            try:
+                err_body = exc.read().decode("utf-8", errors="replace")
+                err_data = json.loads(err_body)
+                err_msg = err_data.get("error", str(exc))
+            except Exception:
+                err_msg = str(exc)
+            return False, f"Serveur central ({exc.code}) : {err_msg}"
         except Exception as exc:
             return False, f"Impossible de rejoindre la session DUO : {exc}"
 
@@ -377,6 +394,20 @@ class DuoSessionManager(QObject):
                         method="POST",
                     )
                     urllib.request.urlopen(sync_req, timeout=3).close()
+            except urllib.error.HTTPError as exc:
+                if exc.code == 404 and not self.is_host:
+                    self._running = False
+                    self.audio_link.stop()
+                    self.stop_webcam()
+                    self.active_code = None
+                    self.is_connected = False
+                    self.guest_info = None
+                    self.session_closed.emit()
+                elif exc.code == 404 and self.is_host:
+                    self.is_connected = False
+                    self.guest_info = None
+                    self.audio_link.stop()
+                    self.guest_disconnected.emit()
             except Exception:
                 pass
             # Cycle court : reduit le decalage de demarrage video hote/invite

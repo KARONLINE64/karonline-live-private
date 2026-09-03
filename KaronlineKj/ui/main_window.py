@@ -2717,6 +2717,12 @@ class MainWindow(QMainWindow):
             self.duo_stop_btn.setEnabled(True)
             self.set_status(f"● Session DUO Hôte {code} démarrée", True)
             self.duo_qr_box.hide()
+        else:
+            QMessageBox.warning(
+                self,
+                "ÉCHEC CRÉATION DUO",
+                f"Impossible de démarrer la session DUO Hôte :\n\n{code}"
+            )
 
     def _join_duo_session_action(self):
         if not self.ensure_central_login():
@@ -2821,6 +2827,11 @@ class MainWindow(QMainWindow):
         self._duo_guest_connected_flag = False
         self._last_duo_guest_frame_data = None
         self._update_public_duo_webcam_button_state()
+        self._set_duo_guest_controls_locked(False)
+        self.duo_start_btn.setEnabled(True)
+        self.duo_join_btn.setEnabled(True)
+        self.duo_stop_btn.setEnabled(False)
+        self.session_start_btn.setEnabled(True)
         if self._public_screen_mode == "duo_webcam":
             self._public_screen_mode = "video"
             self._show_public_background()
