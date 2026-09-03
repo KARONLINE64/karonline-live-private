@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $cloudflared = "$env:LOCALAPPDATA\cloudflared\cloudflared.exe"
-$tunnelName = "karonlinelive-lan"
+$tunnelName = "karonlinelive-fixed-api"
 
 if (-not (Test-Path $cloudflared)) {
     Write-Host "cloudflared introuvable a $cloudflared" -ForegroundColor Red

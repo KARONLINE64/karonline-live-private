@@ -54,24 +54,24 @@ if ($localOk) {
     exit 1
 }
 
-# 3) Verifier le tunnel Cloudflare (le relancer s'il manque, avec capture logs).
+# 3) Verifier le tunnel Cloudflare du PC fixe (le relancer s'il manque, avec capture logs).
 $cloudflared = "$env:LOCALAPPDATA\cloudflared\cloudflared.exe"
 $tunnelOut = Join-Path $env:TEMP "kl_tunnel.out.log"
 $tunnelErr = Join-Path $env:TEMP "kl_tunnel.err.log"
 
 $running = Get-CimInstance Win32_Process -Filter "name = 'cloudflared.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -like "*karonlinelive-lan*" }
+    Where-Object { $_.CommandLine -like "*karonlinelive-fixed-api*" }
 if (-not $running) {
     if (Test-Path $cloudflared) {
-        Write-Host "Relance du tunnel karonlinelive-lan..." -ForegroundColor Cyan
+        Write-Host "Relance du tunnel karonlinelive-fixed-api..." -ForegroundColor Cyan
         Remove-Item $tunnelOut, $tunnelErr -ErrorAction SilentlyContinue
-        Start-Process $cloudflared -ArgumentList "tunnel", "run", "karonlinelive-lan" `
+        Start-Process $cloudflared -ArgumentList "tunnel", "run", "karonlinelive-fixed-api" `
             -WindowStyle Hidden -RedirectStandardOutput $tunnelOut -RedirectStandardError $tunnelErr
     } else {
         Write-Host "[ATTENTION] cloudflared introuvable : tunnel non relance." -ForegroundColor Yellow
     }
 } else {
-    Write-Host "Tunnel karonlinelive-lan deja actif."
+    Write-Host "Tunnel karonlinelive-fixed-api deja actif."
 }
 
 if ($SkipPublicProbe) {
