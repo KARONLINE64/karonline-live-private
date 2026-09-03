@@ -5,8 +5,8 @@
 
 #define MyAppName "KaronlineBox"
 ; Numero de version : a incrementer a chaque nouveau setup publie.
-#define MyAppVersionShort "V90.3"
-#define MyAppBuildDate "02-09-2026"
+#define MyAppVersionShort "V90.4"
+#define MyAppBuildDate "03-09-2026"
 #define MyAppVersion MyAppVersionShort + " (" + MyAppBuildDate + ")"
 #define MyAppExeName "KaronlineBox_V90.exe"
 #define MySourceDir "dist\KaronlineBox_V90"
@@ -18,8 +18,8 @@ AppVersion={#MyAppVersion}
 DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
-OutputDir=C:\Temp\KaronlineBox_Setup
-OutputBaseFilename=KaronlineBox_{#MyAppVersionShort}_Setup
+OutputDir=.
+OutputBaseFilename=karonlinebox_setup
 SetupIconFile=ui\kb_logo_luxury.ico
 Compression=lzma2
 SolidCompression=yes
