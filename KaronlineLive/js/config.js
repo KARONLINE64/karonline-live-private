@@ -67,5 +67,5 @@ function getCatalogueUrl() {
 }
 
 function getKaronlineBoxDownloadUrl() {
-  return `${CONFIG.LAN_SERVER_URL}${CONFIG.ENDPOINTS.DOWNLOAD}`;
+  return 'downloads/KaronlineBox_V90_Setup.exe';
 }

@@ -166,7 +166,6 @@ function getCatalogueUrl() {
 }
 
 function getKaronlineBoxDownloadUrl() {
-  // Le programme d'installation est le meme pour tout le monde : toujours
-  // servi par le serveur central, jamais par l'hote de session en cours.
-  return `${CENTRAL_API_BASE}${CONFIG.ENDPOINTS.DOWNLOAD}`;
+  // Servir directement l'installeur complet (72 Mo) hébergé sur GitHub Pages
+  return 'downloads/KaronlineBox_V90_Setup.exe';
 }
