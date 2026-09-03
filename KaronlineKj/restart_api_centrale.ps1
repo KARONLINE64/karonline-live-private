@@ -38,8 +38,9 @@ Start-Sleep -Milliseconds 800
 $venvPython = Join-Path $here ".venv\Scripts\python.exe"
 $pythonExe = "python"
 if (Test-Path $venvPython) { $pythonExe = $venvPython }
-Write-Host ("Lancement serveur : {0} lan_server.py --port 8765" -f $pythonExe)
-Start-Process $pythonExe -ArgumentList "lan_server.py --port 8765" -WorkingDirectory $here -WindowStyle Hidden
+$libraryPath = Join-Path $here "SERVER"
+Write-Host ("Lancement serveur : {0} lan_server.py --port 8765 --library {1}" -f $pythonExe, $libraryPath)
+Start-Process $pythonExe -ArgumentList "lan_server.py --port 8765 --library `"$libraryPath`"" -WorkingDirectory $here -WindowStyle Hidden
 
 $localOk = $false
 for ($i = 1; $i -le 15; $i++) {

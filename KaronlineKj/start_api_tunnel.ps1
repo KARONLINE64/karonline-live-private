@@ -25,7 +25,8 @@ if (-not (Test-HttpOk "http://localhost:8765/catalogue")) {
     $venvPython = Join-Path $here ".venv\Scripts\python.exe"
     $pythonExe = "python"
     if (Test-Path $venvPython) { $pythonExe = $venvPython }
-    Start-Process $pythonExe -ArgumentList "lan_server.py --port 8765" -WorkingDirectory $here -WindowStyle Hidden
+    $libraryPath = Join-Path $here "SERVER"
+    Start-Process $pythonExe -ArgumentList "lan_server.py --port 8765 --library `"$libraryPath`"" -WorkingDirectory $here -WindowStyle Hidden
 } else {
     Write-Host "Serveur API local deja actif." -ForegroundColor Green
 }
