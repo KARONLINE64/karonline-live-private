@@ -166,6 +166,7 @@ function getCatalogueUrl() {
 }
 
 function getKaronlineBoxDownloadUrl() {
-  // Servir directement l'installeur complet (72 Mo) hébergé sur GitHub Pages
-  return 'downloads/KaronlineBox_V90_Setup.exe';
+  // ZIP : les navigateurs bloquent le telechargement direct d'un .exe non signe,
+  // mais laissent passer une archive .zip (ouvrable nativement par Windows).
+  return 'downloads/KaronlineBox_Setup.zip';
 }

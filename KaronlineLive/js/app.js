@@ -175,7 +175,7 @@ downloadTriggers.forEach((trigger) => trigger.addEventListener('click', async ()
     // Créer un lien invisible et cliquer dessus pour télécharger
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = 'KaronlineBox_Setup.exe';
+    link.download = 'KaronlineBox_Setup.zip';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
