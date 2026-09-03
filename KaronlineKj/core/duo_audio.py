@@ -154,6 +154,16 @@ class DuoAudioLink(QObject):
             self._output_stream.start()
             peer.addTrack(_MicrophoneTrack(audio_queue))
 
+            @peer.on("connectionstatechange")
+            async def on_connectionstatechange():
+                state = peer.connectionState
+                self.status_changed.emit(f"Audio DUO WebRTC : {state}")
+                if state in {"failed", "disconnected", "closed"}:
+                    self.error.emit(
+                        f"Audio DUO WebRTC interrompu ({state}). "
+                        "Vérifiez la connexion Internet et les pare-feu des deux PC."
+                    )
+
             @peer.on("track")
             def on_track(track):
                 if track.kind == "audio":

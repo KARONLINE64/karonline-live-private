@@ -256,6 +256,7 @@ class MainWindow(QMainWindow):
                 duration,
                 is_karaoke,
                 song.artist if song else "",
+                self.current_key_value,
             )
             if self.duo_manager.is_host and is_karaoke:
                 self._capture_and_send_duo_host_video_frame()
@@ -2903,6 +2904,10 @@ class MainWindow(QMainWindow):
         song_title = str(sync_payload.get("song", "")).strip()
         singer = str(sync_payload.get("singer", "")).strip()
         artist = str(sync_payload.get("artist", "")).strip()
+        try:
+            key = max(-6, min(6, int(sync_payload.get("key", 0))))
+        except (TypeError, ValueError):
+            key = 0
         pos_ms = sync_payload.get("position_ms", 0)
         is_playing = sync_payload.get("is_playing", False)
 
@@ -2951,7 +2956,7 @@ class MainWindow(QMainWindow):
                     match_file = None
 
             if match_file:
-                guest_song = Song(singer, artist, song_title, 0)
+                guest_song = Song(singer, artist, song_title, key)
                 self.song_files[id(guest_song)] = match_file
                 self.queue.current = guest_song
                 self.play_song_object(guest_song)
@@ -2962,6 +2967,8 @@ class MainWindow(QMainWindow):
                     f"● DUO : « {song_title} » introuvable sur ce poste", False
                 )
         else:
+            if self.current_key_value != key:
+                self.highlight_key(key)
             if is_playing and abs(self.gst_player.position_ms() - pos_ms) > 1200:
                 self.gst_player.seek_ms(pos_ms)
 

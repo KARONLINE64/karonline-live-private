@@ -156,6 +156,7 @@ class DuoSessionManager(QObject):
 
         Renvoie (success, code_ou_erreur, qr_url).
         """
+        self.is_host = True
         code = generate_duo_code()
         payload = {
             "code": code,
@@ -259,11 +260,14 @@ class DuoSessionManager(QObject):
         if self.active_code:
             self._request_api("/duo/close", payload_dict={"code": self.active_code}, method="POST", timeout=4)
         self.active_code = None
+        self.is_host = True
         self.is_connected = False
         self.guest_info = None
         self.session_closed.emit()
 
-    def send_sync_state(self, song_title: str, singer: str, position_ms: int, duration_ms: int, is_playing: bool, artist: str = ""):
+    def send_sync_state(self, song_title: str, singer: str, position_ms: int,
+                        duration_ms: int, is_playing: bool, artist: str = "",
+                        key: int = 0):
         """Émet un tick de synchronisation Master Clock vers l'invité."""
         if not self.active_code:
             return
@@ -273,6 +277,7 @@ class DuoSessionManager(QObject):
             "song": song_title,
             "artist": artist,
             "singer": singer,
+            "key": max(-6, min(6, int(key))),
             "position_ms": position_ms,
             "duration_ms": duration_ms,
             "is_playing": is_playing,
