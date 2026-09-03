@@ -12,24 +12,6 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from PySide6.QtCore import QObject, Signal
-
-CENTRAL_API_BASE = "https://api.karonlinelive.com"
-
-
-def generate_duo_code() -> str:
-    """Génère un code temporaire unique de type DUO-8492."""
-    digits = "".join(random.choices(string.digits, k=4))
-    return f"DUO-{digits}"
-
-
-import base64
-import json
-import random
-import string
-import threading
-import time
-import urllib.request
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QObject, Qt, Signal
 from core.duo_audio import DuoAudioLink
 
@@ -40,6 +22,18 @@ def generate_duo_code() -> str:
     """Génère un code temporaire unique de type DUO-8492."""
     digits = "".join(random.choices(string.digits, k=4))
     return f"DUO-{digits}"
+
+
+def normalize_duo_code(raw: str) -> str:
+    """Normalise un code DUO (ex: '4891', 'duo 4891', 'DUO-4891' -> 'DUO-4891')."""
+    clean = (raw or "").strip().upper().replace(" ", "-")
+    if not clean:
+        return ""
+    if not clean.startswith("DUO-"):
+        digits = "".join(c for c in clean if c.isdigit())
+        if digits:
+            return f"DUO-{digits}"
+    return clean
 
 
 class DuoWebcamCapturer(QObject):
@@ -117,6 +111,7 @@ class DuoSessionManager(QObject):
         self.guest_info: dict | None = None
         self.is_connected: bool = False
         self.webcam_capturer: DuoWebcamCapturer | None = None
+        self._active_api_base: str = CENTRAL_API_BASE
         self.audio_link = DuoAudioLink(
             CENTRAL_API_BASE,
             lambda: getattr(self.central_auth, "token", ""),
@@ -127,98 +122,90 @@ class DuoSessionManager(QObject):
         self._polling_thread: threading.Thread | None = None
         self._running: bool = False
 
+    def _request_api(self, path: str, payload_dict: dict | None = None, method: str = "POST", timeout: int = 8) -> tuple[int, dict]:
+        """Effectue une requête REST DUO vers le relais public unique."""
+        payload = json.dumps(payload_dict).encode("utf-8") if payload_dict is not None else None
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0",
+        }
+        if payload_dict is not None:
+            headers["Content-Type"] = "application/json"
+        if self.central_auth and hasattr(self.central_auth, "authorization_header"):
+            headers.update(self.central_auth.authorization_header())
+
+        url = f"{CENTRAL_API_BASE}{path}"
+        try:
+            req = urllib.request.Request(url, data=payload, headers=headers, method=method)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                data = json.loads(resp.read().decode("utf-8")) if resp.status != 204 else {}
+                return resp.status, data
+        except urllib.error.HTTPError as exc:
+            try:
+                err_body = exc.read().decode("utf-8", errors="replace")
+                err_data = json.loads(err_body)
+            except Exception:
+                err_data = {"error": f"HTTP_{exc.code}"}
+            return exc.code, err_data
+        except Exception as exc:
+            return 500, {"error": str(exc)}
+
     def create_session(self, session_name: str | None = None) -> tuple[bool, str, str]:
         """Crée une nouvelle session DUO auprès du serveur central.
 
         Renvoie (success, code_ou_erreur, qr_url).
         """
         code = generate_duo_code()
-        payload = json.dumps({
+        payload = {
             "code": code,
             "session_name": session_name or "",
             "mode": "duo",
             "created_at": time.time(),
-        }).encode("utf-8")
-
-        headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0",
         }
-        if self.central_auth and hasattr(self.central_auth, "authorization_header"):
-            headers.update(self.central_auth.authorization_header())
 
-        try:
-            req = urllib.request.Request(
-                f"{CENTRAL_API_BASE}/duo/create",
-                data=payload,
-                headers=headers,
-                method="POST",
-            )
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-                self.active_code = data.get("code", code)
-                qr_url = ""
-                self._start_polling()
-                self.start_webcam_if_available()
-                self.session_created.emit(self.active_code, qr_url)
-                return True, self.active_code, qr_url
-        except urllib.error.HTTPError as exc:
-            try:
-                err_body = exc.read().decode("utf-8", errors="replace")
-                err_data = json.loads(err_body)
-                err_msg = err_data.get("error", str(exc))
-            except Exception:
-                err_msg = str(exc)
-            return False, f"Serveur central ({exc.code}) : {err_msg}", ""
-        except Exception as exc:
-            return False, f"Impossible de créer la session DUO : {exc}", ""
+        status, data = self._request_api("/duo/create", payload_dict=payload, method="POST", timeout=8)
+        if status == 200:
+            self.active_code = data.get("code", code)
+            qr_url = ""
+            self._start_polling()
+            self.start_webcam_if_available()
+            self.session_created.emit(self.active_code, qr_url)
+            return True, self.active_code, qr_url
+        else:
+            err_msg = data.get("error", f"Erreur {status}")
+            return False, f"Impossible de créer la session DUO ({status}) : {err_msg}", ""
 
     def join_session(self, code: str, guest_name: str = "Invité Desktop") -> tuple[bool, str]:
         """Rejoint une session DUO existante en tant qu'invité Desktop.
 
         Renvoie (success, message).
         """
-        clean_code = (code or "").strip().upper()
+        clean_code = normalize_duo_code(code)
         if not clean_code:
             return False, "Code de session invalide."
 
-        payload = json.dumps({
+        payload = {
             "code": clean_code,
             "guest_name": guest_name,
-        }).encode("utf-8")
-
-        headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0",
         }
-        if self.central_auth and hasattr(self.central_auth, "authorization_header"):
-            headers.update(self.central_auth.authorization_header())
 
-        try:
-            req = urllib.request.Request(
-                f"{CENTRAL_API_BASE}/duo/join",
-                data=payload,
-                headers=headers,
-                method="POST",
+        status, data = self._request_api("/duo/join", payload_dict=payload, method="POST", timeout=8)
+        if status == 200:
+            self.active_code = clean_code
+            self.is_host = False
+            self.is_connected = True
+            self._start_polling()
+            self.start_webcam_if_available()
+            self.audio_link.start(self.active_code, is_host=False)
+            return True, f"Connecté à la session {clean_code}"
+        elif status == 404:
+            return False, (
+                f"Session DUO « {clean_code} » introuvable (404).\n\n"
+                "• Assurez-vous que l'hôte a bien cliqué sur DÉMARRER SESSION (HÔTE).\n"
+                "• Vérifiez le code fourni (ex: DUO-8492)."
             )
-            with urllib.request.urlopen(req, timeout=8) as resp:
-                self.active_code = clean_code
-                self.is_host = False
-                self.is_connected = True
-                self._start_polling()
-                self.start_webcam_if_available()
-                self.audio_link.start(self.active_code, is_host=False)
-                return True, f"Connecté à la session {clean_code}"
-        except urllib.error.HTTPError as exc:
-            try:
-                err_body = exc.read().decode("utf-8", errors="replace")
-                err_data = json.loads(err_body)
-                err_msg = err_data.get("error", str(exc))
-            except Exception:
-                err_msg = str(exc)
-            return False, f"Serveur central ({exc.code}) : {err_msg}"
-        except Exception as exc:
-            return False, f"Impossible de rejoindre la session DUO : {exc}"
+        else:
+            err_msg = data.get("error", f"Erreur {status}")
+            return False, f"Impossible de rejoindre la session DUO ({status}) : {err_msg}"
 
     def start_webcam_if_available(self):
         if not getattr(self, "webcam_capturer", None):
@@ -236,36 +223,19 @@ class DuoSessionManager(QObject):
         role = "host" if self.is_host else "guest"
         b64_str = base64.b64encode(jpeg_bytes).decode("ascii")
         frame_data = f"data:image/jpeg;base64,{b64_str}"
-        payload = json.dumps({
+        payload = {
             "code": self.active_code,
             "role": role,
             "frame": frame_data,
-        }).encode("utf-8")
-
-        headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0",
         }
-        if self.central_auth and hasattr(self.central_auth, "authorization_header"):
-            headers.update(self.central_auth.authorization_header())
-
         threading.Thread(
             target=self._post_frame,
-            args=(payload, headers),
+            args=(payload,),
             daemon=True
         ).start()
 
-    def _post_frame(self, payload: bytes, headers: dict):
-        try:
-            req = urllib.request.Request(
-                f"{CENTRAL_API_BASE}/duo/frame",
-                data=payload,
-                headers=headers,
-                method="POST",
-            )
-            urllib.request.urlopen(req, timeout=3).close()
-        except Exception:
-            pass
+    def _post_frame(self, payload: dict):
+        self._request_api("/duo/frame", payload_dict=payload, method="POST", timeout=3)
 
     def close_session(self):
         """Ferme la session DUO en cours."""
@@ -273,24 +243,7 @@ class DuoSessionManager(QObject):
         self.audio_link.stop()
         self.stop_webcam()
         if self.active_code:
-            try:
-                headers = {
-                    "Content-Type": "application/json",
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0",
-                }
-                if self.central_auth and hasattr(self.central_auth, "authorization_header"):
-                    headers.update(self.central_auth.authorization_header())
-
-                payload = json.dumps({"code": self.active_code}).encode("utf-8")
-                req = urllib.request.Request(
-                    f"{CENTRAL_API_BASE}/duo/close",
-                    data=payload,
-                    headers=headers,
-                    method="POST",
-                )
-                urllib.request.urlopen(req, timeout=4)
-            except Exception:
-                pass
+            self._request_api("/duo/close", payload_dict={"code": self.active_code}, method="POST", timeout=4)
         self.active_code = None
         self.is_connected = False
         self.guest_info = None
@@ -341,19 +294,8 @@ class DuoSessionManager(QObject):
     def _poll_loop(self):
         while self._running and self.active_code:
             try:
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KaronlineBox/1.0",
-                }
-                if self.central_auth and hasattr(self.central_auth, "authorization_header"):
-                    headers.update(self.central_auth.authorization_header())
-
-                req = urllib.request.Request(
-                    f"{CENTRAL_API_BASE}/duo/status?code={self.active_code}",
-                    headers=headers,
-                    method="GET",
-                )
-                with urllib.request.urlopen(req, timeout=4) as resp:
-                    data = json.loads(resp.read().decode("utf-8"))
+                status, data = self._request_api(f"/duo/status?code={self.active_code}", method="GET", timeout=4)
+                if status == 200:
                     guest = data.get("guest")
                     if guest and not self.is_connected:
                         self.is_connected = True
@@ -382,32 +324,23 @@ class DuoSessionManager(QObject):
                         sync = data.get("sync")
                         if sync:
                             self.sync_tick.emit(sync)
+                elif status == 404:
+                    if not self.is_host:
+                        self._running = False
+                        self.audio_link.stop()
+                        self.stop_webcam()
+                        self.active_code = None
+                        self.is_connected = False
+                        self.guest_info = None
+                        self.session_closed.emit()
+                    elif self.is_host:
+                        self.is_connected = False
+                        self.guest_info = None
+                        self.audio_link.stop()
+                        self.guest_disconnected.emit()
 
                 if self.is_host and getattr(self, "_latest_sync_payload", None):
-                    sync_data = json.dumps(self._latest_sync_payload).encode("utf-8")
-                    sync_headers = dict(headers)
-                    sync_headers["Content-Type"] = "application/json"
-                    sync_req = urllib.request.Request(
-                        f"{CENTRAL_API_BASE}/duo/sync",
-                        data=sync_data,
-                        headers=sync_headers,
-                        method="POST",
-                    )
-                    urllib.request.urlopen(sync_req, timeout=3).close()
-            except urllib.error.HTTPError as exc:
-                if exc.code == 404 and not self.is_host:
-                    self._running = False
-                    self.audio_link.stop()
-                    self.stop_webcam()
-                    self.active_code = None
-                    self.is_connected = False
-                    self.guest_info = None
-                    self.session_closed.emit()
-                elif exc.code == 404 and self.is_host:
-                    self.is_connected = False
-                    self.guest_info = None
-                    self.audio_link.stop()
-                    self.guest_disconnected.emit()
+                    self._request_api("/duo/sync", payload_dict=self._latest_sync_payload, method="POST", timeout=3)
             except Exception:
                 pass
             # Cycle court : reduit le decalage de demarrage video hote/invite

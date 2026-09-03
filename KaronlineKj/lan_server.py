@@ -407,6 +407,18 @@ def _relay_push(job_id: str, owner: str, status: int, body: dict) -> bool:
     return True
 
 
+def normalize_duo_code(raw: str) -> str:
+    """Normalise un code DUO (ex: '4891', 'duo 4891', 'DUO-4891' -> 'DUO-4891')."""
+    clean = (raw or "").strip().upper().replace(" ", "-")
+    if not clean:
+        return ""
+    if not clean.startswith("DUO-"):
+        digits = "".join(c for c in clean if c.isdigit())
+        if digits:
+            return f"DUO-{digits}"
+    return clean
+
+
 class RequestHandler(BaseHTTPRequestHandler):
     server_version = "KaronlineLAN/1.0"
 
@@ -521,7 +533,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                 return
             query = urlparse(self.path).query
             params = dict(pair.split("=", 1) for pair in query.split("&") if "=" in pair)
-            code = unquote(params.get("code", "")).strip().upper()
+            code = normalize_duo_code(unquote(params.get("code", "")))
             with _DUO_LOCK:
                 entry = DUO_SESSIONS.get(code)
                 if not entry or time.time() - entry.get("ts", 0) > 24 * 3600:
@@ -1123,7 +1135,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
-            code = str(payload.get("code", "")).strip().upper()
+            code = normalize_duo_code(payload.get("code"))
             session_name = str(payload.get("session_name", "")).strip().casefold()
         except Exception:
             code, session_name = "", ""
@@ -1155,7 +1167,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
-            code = str(payload.get("code", "")).strip().upper()
+            code = normalize_duo_code(payload.get("code"))
             guest_name = str(payload.get("guest_name", "Invité")).strip()
         except Exception:
             code, guest_name = "", "Invité"
