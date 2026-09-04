@@ -166,7 +166,5 @@ function getCatalogueUrl() {
 }
 
 function getKaronlineBoxDownloadUrl() {
-  // ZIP : les navigateurs bloquent le telechargement direct d'un .exe non signe,
-  // mais laissent passer une archive .zip (ouvrable nativement par Windows).
-  return 'downloads/KaronlineBox_Setup.zip';
+  return 'downloads/KaronlineBox_V90_Setup.exe';
 }
