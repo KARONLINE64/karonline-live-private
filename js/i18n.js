@@ -35,7 +35,7 @@ const KL_TRANSLATIONS = {
     downloadConfirm: 'Télécharger KaronlineBox',
     unsubscribeTitle: 'Se désabonner',
     unsubscribeText: 'Votre compte sera désactivé et toutes vos sessions seront fermées. Cette action est réversible uniquement en contactant KaronlineLive.',
-    unsubscribeConfirm: 'Confirmer le désabonnement',
+    unsubscribeConfirm: 'Confirmer annulation',
     cancel: 'Annuler',
     logout: 'Se déconnecter',
     unsubscribeDone: 'Votre abonnement a été résilié. Vous êtes maintenant déconnecté.',
