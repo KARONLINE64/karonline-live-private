@@ -550,6 +550,7 @@ class RequestHandler(BaseHTTPRequestHandler):
                     "sync": entry.get("sync"),
                     "guest_frame": entry.get("guest_frame"),
                     "host_frame": entry.get("host_frame"),
+                    "chat": entry.get("chat", []),
                 })
             return
 
@@ -758,6 +759,9 @@ class RequestHandler(BaseHTTPRequestHandler):
             return
         if path == "/duo/frame":
             self._duo_frame()
+            return
+        if path == "/duo/chat":
+            self._duo_chat()
             return
         if path == "/duo/sync":
             self._duo_sync()
@@ -1153,6 +1157,8 @@ class RequestHandler(BaseHTTPRequestHandler):
                 "ts": time.time(),
                 "guest": None,
                 "sync": None,
+                "chat": [],
+                "chat_next_id": 1,
                 "owner": owner,
                 "session_name": session_name,
             }
@@ -1223,6 +1229,39 @@ class RequestHandler(BaseHTTPRequestHandler):
                 else:
                     entry["guest_frame"] = frame
                 entry["ts"] = time.time()
+        self._send_json(200, {"status": "ok"})
+
+    def _duo_chat(self):
+        sender = self._bearer_email()
+        if not sender or "KaronlineBox" not in self.headers.get("User-Agent", ""):
+            self._send_json(401, {"error": "DESKTOP AUTH REQUIRED"})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode("utf-8")) if length > 0 else {}
+            code = normalize_duo_code(payload.get("code"))
+            text = str(payload.get("text", "")).strip()
+        except Exception:
+            code, text = "", ""
+        if not code or not text or len(text) > 500:
+            self._send_json(400, {"error": "INVALID CHAT MESSAGE"})
+            return
+        with _DUO_LOCK:
+            entry = DUO_SESSIONS.get(code)
+            guest = (entry or {}).get("guest") or {}
+            if not entry or sender not in {entry.get("owner"), guest.get("email")}:
+                self._send_json(403, {"error": "DUO ACCESS DENIED"})
+                return
+            message_id = entry.get("chat_next_id", 1)
+            entry["chat_next_id"] = message_id + 1
+            entry.setdefault("chat", []).append({
+                "id": message_id,
+                "sender": "Hôte" if sender == entry.get("owner") else guest.get("name", "Invité"),
+                "text": text,
+                "timestamp": time.time(),
+            })
+            entry["chat"] = entry["chat"][-50:]
+            entry["ts"] = time.time()
         self._send_json(200, {"status": "ok"})
 
     def _duo_sync(self):

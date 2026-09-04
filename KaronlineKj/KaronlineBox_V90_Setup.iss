@@ -5,8 +5,8 @@
 
 #define MyAppName "KaronlineBox"
 ; Numero de version : a incrementer a chaque nouveau setup publie.
-#define MyAppVersionShort "V90.4"
-#define MyAppBuildDate "03-09-2026"
+#define MyAppVersionShort "V90.5"
+#define MyAppBuildDate "04-09-2026"
 #define MyAppVersion MyAppVersionShort + " (" + MyAppBuildDate + ")"
 #define MyAppExeName "KaronlineBox_V90.exe"
 #define MySourceDir "dist\KaronlineBox_V90"

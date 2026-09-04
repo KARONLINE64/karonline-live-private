@@ -19,6 +19,7 @@ class DuoVideoOverlay(QWidget):
     closed = Signal()
     toggle_audio_muted = Signal(bool)
     toggle_video_muted = Signal(bool)
+    frame_error = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -150,8 +151,10 @@ class DuoVideoOverlay(QWidget):
                     self.avatar_label.setPixmap(scaled)
                 else:
                     self.avatar_label.setPixmap(pixmap)
-        except Exception:
-            pass
+            else:
+                self.frame_error.emit("Image webcam invitée reçue mais illisible.")
+        except Exception as exc:
+            self.frame_error.emit(f"Impossible d'afficher la webcam invitée : {exc}")
 
     def set_connected_status(self, connected: bool):
         if connected:

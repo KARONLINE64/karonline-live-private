@@ -6,6 +6,7 @@ avec l'invité (Desktop ou Mobile) et l'émission du Master Clock de synchronisa
 from __future__ import annotations
 
 import json
+import os
 import random
 import string
 import threading
@@ -15,7 +16,9 @@ import urllib.request
 from PySide6.QtCore import QByteArray, QBuffer, QIODevice, QObject, Qt, Signal
 from core.duo_audio import DuoAudioLink
 
-CENTRAL_API_BASE = "https://api.karonlinelive.com"
+CENTRAL_API_BASE = os.environ.get(
+    "KL_CENTRAL_API", "https://api.karonlinelive.com"
+).rstrip("/")
 
 
 def generate_duo_code() -> str:
@@ -40,6 +43,7 @@ class DuoWebcamCapturer(QObject):
     """Capture d'images depuis la webcam locale (si présente)."""
 
     frame_ready = Signal(bytes)
+    capture_error = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -60,6 +64,11 @@ class DuoWebcamCapturer(QObject):
             self.session.setCamera(self.camera)
             self.session.setVideoSink(self.sink)
             self.sink.videoFrameChanged.connect(self._on_video_frame)
+            self.camera.errorOccurred.connect(
+                lambda _error, message: self.capture_error.emit(
+                    f"Webcam DUO indisponible : {message}"
+                )
+            )
             self.camera.start()
             print("DUO WEBCAM CAPTURER STARTED", flush=True)
             return True
@@ -88,7 +97,9 @@ class DuoWebcamCapturer(QObject):
         ba = QByteArray()
         buf = QBuffer(ba)
         buf.open(QIODevice.WriteOnly)
-        scaled.save(buf, "JPG", 50)
+        if not scaled.save(buf, "JPG", 50):
+            self.capture_error.emit("Impossible d'encoder l'image webcam DUO.")
+            return
         self.frame_ready.emit(bytes(ba.data()))
 
 
@@ -103,6 +114,7 @@ class DuoSessionManager(QObject):
     guest_frame_received = Signal(str)     # base64 image string invité
     host_frame_received = Signal(str)      # base64 image string hôte
     webcam_status_changed = Signal(str, bool)
+    chat_messages_received = Signal(list)
 
     def __init__(self, central_auth=None):
         super().__init__()
@@ -115,6 +127,10 @@ class DuoSessionManager(QObject):
         self._active_api_base: str = CENTRAL_API_BASE
         self._last_webcam_error = ""
         self._guest_frame_seen = False
+        self._frame_upload_lock = threading.Lock()
+        self._frame_upload_active = False
+        self._frame_upload_confirmed = False
+        self._last_chat_id = 0
         self.audio_link = DuoAudioLink(
             CENTRAL_API_BASE,
             lambda: getattr(self.central_auth, "token", ""),
@@ -170,6 +186,8 @@ class DuoSessionManager(QObject):
         if status == 200:
             self.active_code = data.get("code", code)
             self._guest_frame_seen = False
+            self._frame_upload_confirmed = False
+            self._last_chat_id = 0
             qr_url = ""
             self._start_polling()
             self.start_webcam_if_available()
@@ -198,6 +216,8 @@ class DuoSessionManager(QObject):
             self.active_code = clean_code
             self.is_host = False
             self.is_connected = True
+            self._frame_upload_confirmed = False
+            self._last_chat_id = 0
             self._start_polling()
             self.start_webcam_if_available()
             self.audio_link.start(self.active_code, is_host=False)
@@ -216,6 +236,9 @@ class DuoSessionManager(QObject):
         if not getattr(self, "webcam_capturer", None):
             self.webcam_capturer = DuoWebcamCapturer(self)
             self.webcam_capturer.frame_ready.connect(self.send_webcam_frame)
+            self.webcam_capturer.capture_error.connect(
+                lambda message: self.webcam_status_changed.emit(message, False)
+            )
         if self.webcam_capturer.start():
             self.webcam_status_changed.emit("Webcam DUO active", True)
         else:
@@ -228,6 +251,10 @@ class DuoSessionManager(QObject):
     def send_webcam_frame(self, jpeg_bytes: bytes):
         if not self.active_code:
             return
+        with self._frame_upload_lock:
+            if self._frame_upload_active:
+                return
+            self._frame_upload_active = True
         role = "host" if self.is_host else "guest"
         b64_str = base64.b64encode(jpeg_bytes).decode("ascii")
         frame_data = f"data:image/jpeg;base64,{b64_str}"
@@ -242,17 +269,48 @@ class DuoSessionManager(QObject):
             daemon=True
         ).start()
 
-    def _post_frame(self, payload: dict):
-        status, data = self._request_api("/duo/frame", payload_dict=payload, method="POST", timeout=3)
-        if status == 200:
-            self._last_webcam_error = ""
+    def send_chat_message(self, text: str):
+        if not self.active_code:
             return
-        error = data.get("error", f"Erreur {status}")
-        if error != self._last_webcam_error:
-            self._last_webcam_error = error
+        message = str(text or "").strip()
+        if not message:
+            return
+        threading.Thread(
+            target=self._post_chat_message,
+            args=(message,),
+            daemon=True,
+        ).start()
+
+    def _post_chat_message(self, text: str):
+        status, data = self._request_api(
+            "/duo/chat",
+            payload_dict={"code": self.active_code, "text": text},
+            method="POST",
+            timeout=4,
+        )
+        if status != 200:
             self.webcam_status_changed.emit(
-                f"Envoi webcam DUO impossible ({status}) : {error}", False
+                f"Message DUO non envoyé ({status}) : {data.get('error', 'Erreur')}", False
             )
+
+    def _post_frame(self, payload: dict):
+        try:
+            status, data = self._request_api("/duo/frame", payload_dict=payload, method="POST", timeout=3)
+            if status == 200:
+                self._last_webcam_error = ""
+                if not self._frame_upload_confirmed:
+                    self._frame_upload_confirmed = True
+                    self.webcam_status_changed.emit("Webcam DUO envoyée au relais", True)
+                return
+            error = data.get("error", f"Erreur {status}")
+            if error != self._last_webcam_error:
+                self._last_webcam_error = error
+                self.webcam_status_changed.emit(
+                    f"Envoi webcam DUO impossible ({status}) : {error}", False
+                )
+        finally:
+            with self._frame_upload_lock:
+                self._frame_upload_active = False
 
     def close_session(self):
         """Ferme la session DUO en cours."""
@@ -350,6 +408,16 @@ class DuoSessionManager(QObject):
                         sync = data.get("sync")
                         if sync:
                             self.sync_tick.emit(sync)
+
+                    messages = [
+                        message for message in data.get("chat", [])
+                        if int(message.get("id", 0)) > self._last_chat_id
+                    ]
+                    if messages:
+                        self._last_chat_id = max(
+                            int(message.get("id", 0)) for message in messages
+                        )
+                        self.chat_messages_received.emit(messages)
                 elif status == 404:
                     if not self.is_host:
                         self._running = False
