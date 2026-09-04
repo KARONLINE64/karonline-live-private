@@ -283,7 +283,7 @@ function applyKaronlineLanguage() {
     globeButton.setAttribute('aria-label', label);
     globeButton.title = label;
   }
-  document.querySelectorAll('[data-logout]').forEach((button) => {
+  document.querySelectorAll('[data-logout][data-i18n]').forEach((button) => {
     button.textContent = klText('logout');
     button.setAttribute('aria-label', klText('logout'));
   });
