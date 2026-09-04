@@ -42,10 +42,10 @@
 
     .home-canvas img {
       display: block;
-      height: 100%;
       pointer-events: none;
-      width: 100%;
       user-select: none;
+      width: 100%;
+      height: auto;
       -webkit-user-drag: none;
     }
 
@@ -64,34 +64,6 @@
       padding: 0;
       position: absolute;
       z-index: 1;
-      border-radius: 6px;
-      transition: background 0.15s, outline 0.15s;
-    }
-
-    .about-trigger:hover,
-    .catalogue-trigger:hover,
-    .bundle-trigger:hover,
-    .register-trigger:hover,
-    .unsubscribe-trigger:hover,
-    .login-trigger:hover,
-    .logout-trigger:hover,
-    .download-nav-trigger:hover,
-    .trial-trigger:hover {
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .about-trigger:focus-visible,
-    .catalogue-trigger:focus-visible,
-    .bundle-trigger:focus-visible,
-    .register-trigger:focus-visible,
-    .unsubscribe-trigger:focus-visible,
-    .login-trigger:focus-visible,
-    .logout-trigger:focus-visible,
-    .download-nav-trigger:focus-visible,
-    .trial-trigger:focus-visible {
-      border: 2px solid #fff;
-      outline: 2px solid #145cff;
-      outline-offset: 2px;
     }
 
     .about-trigger { inset: 3.3% auto auto 22.1%; width: 7.8%; height: 5.9%; }
@@ -126,11 +98,6 @@
       height: 9%;
     }
 
-    .download-trigger:focus-visible {
-      outline: 3px solid #fff;
-      outline-offset: 3px;
-    }
-
     .language-globe-trigger {
       background: transparent;
       border: 0;
@@ -147,13 +114,6 @@
 
     html[lang="en"] .language-globe-trigger {
       left: 92%;
-    }
-
-    .language-globe-trigger:hover { background: rgba(255, 255, 255, .08); }
-
-    .language-globe-trigger:focus-visible {
-      outline: 2px solid #fff;
-      outline-offset: 2px;
     }
 
     .language-dialog {
