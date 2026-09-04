@@ -261,13 +261,7 @@ function applyKaronlineLanguage() {
   const language = klLanguage();
   document.documentElement.lang = language;
   document.title = language === 'en' ? 'KaronlineLive - Karaoke & Entertainment' : 'KaronlineLive';
-  const homeVisual = document.querySelector('#home-visual');
-  if (homeVisual) {
-    homeVisual.src = `assets/ACCUEIL_${language === 'en' ? 'EN' : 'FR'}.png`;
-    homeVisual.alt = language === 'en'
-      ? 'KaronlineLive, karaoke and entertainment software'
-      : 'KaronlineLive, logiciel de karaoké et animation';
-  }
+  updateHomeVisual();
   document.querySelector('#terms-fr')?.toggleAttribute('hidden', language === 'en');
   document.querySelector('#terms-en')?.toggleAttribute('hidden', language !== 'en');
   document.querySelectorAll('[data-i18n]').forEach((element) => {
@@ -283,7 +277,7 @@ function applyKaronlineLanguage() {
   document.querySelectorAll('[data-i18n-aria]').forEach((element) => {
     element.setAttribute('aria-label', KL_ARIA_LABELS[language][element.dataset.i18nAria]);
   });
-  const globeButton = document.querySelector('[data-language-toggle]');
+  const globeButton = document.querySelector('[data-language-picker]');
   if (globeButton) {
     const label = KL_ARIA_LABELS[language].language;
     globeButton.setAttribute('aria-label', label);
@@ -305,6 +299,24 @@ function applyKaronlineLanguage() {
     element.dataset.klOriginal = text;
     element.textContent = language === 'en' ? KL_ENGLISH_TEXT[text] : text;
   });
+}
+
+function updateHomeVisual() {
+  const homeVisual = document.querySelector('#home-visual');
+  if (!homeVisual) return;
+
+  const language = klLanguage();
+  const signedIn = Boolean(
+    localStorage.getItem('kl_auth_token') && localStorage.getItem('kl_auth_email')
+  );
+  const visualName = language === 'en'
+    ? (signedIn ? 'ACCUEIL_ENG_POST_SIGN_IN.png' : 'ACCUEIL_EN.png')
+    : (signedIn ? 'ACCUEIL_FR_POST_CONNEXION.png' : 'ACCUEIL_FR.png');
+
+  homeVisual.src = `assets/${visualName}`;
+  homeVisual.alt = language === 'en'
+    ? 'KaronlineLive, karaoke and entertainment software'
+    : 'KaronlineLive, logiciel de karaoké et animation';
 }
 
 document.querySelectorAll('[data-language-picker]').forEach((button) => {

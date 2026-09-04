@@ -33,11 +33,11 @@
     }
 
     .home-canvas {
-      aspect-ratio: 1400 / 750;
+      aspect-ratio: 16 / 9;
       display: block;
-      height: min(100vh, calc(100vw * 750 / 1400));
+      height: min(100vh, calc(100vw * 9 / 16));
       position: relative;
-      width: min(100vw, calc(100vh * 1400 / 750));
+      width: min(100vw, calc(100vh * 16 / 9));
     }
 
     .home-canvas img {
@@ -55,6 +55,7 @@
     .register-trigger,
     .unsubscribe-trigger,
     .login-trigger,
+    .logout-trigger,
     .download-nav-trigger,
     .trial-trigger {
       background: transparent;
@@ -73,6 +74,7 @@
     .register-trigger:hover,
     .unsubscribe-trigger:hover,
     .login-trigger:hover,
+    .logout-trigger:hover,
     .download-nav-trigger:hover,
     .trial-trigger:hover {
       background: rgba(255, 255, 255, 0.08);
@@ -84,6 +86,7 @@
     .register-trigger:focus-visible,
     .unsubscribe-trigger:focus-visible,
     .login-trigger:focus-visible,
+    .logout-trigger:focus-visible,
     .download-nav-trigger:focus-visible,
     .trial-trigger:focus-visible {
       border: 2px solid #fff;
@@ -104,58 +107,11 @@
       width: 10.5%;
     }
 
-    .logout-trigger {
-      background: #000;
-      border: 1px solid #20323b;
-      border-radius: 5px;
-      color: #9aa0a6;
-      cursor: pointer;
-      font: 400 clamp(8px, 1.05vw, 15px) 'DM Sans', sans-serif;
-      inset: 3.1% auto auto 60.5%;
-      padding: 0;
-      position: absolute;
-      width: 10.4%;
-      height: 6%;
-      z-index: 1;
-    }
+    .logout-trigger { inset: 3.3% auto auto 58.9%; width: 9.3%; height: 5.9%; }
 
-    .logout-trigger:hover {
-      background: #0b1821;
-      border-color: #387a90;
-    }
+    .unsubscribe-trigger { inset: 3.3% auto auto 49.1%; width: 9.1%; height: 5.9%; }
 
-    .logout-trigger:focus-visible {
-      outline: 2px solid #145cff;
-      outline-offset: 2px;
-    }
-
-    .unsubscribe-trigger {
-      background: #000;
-      border: 1px solid #20323b;
-      color: #ff8c9f;
-      font: 500 clamp(8px, 1.05vw, 15px) 'DM Sans', sans-serif;
-      inset: 3.3% auto auto 50%;
-      width: 9.1%;
-      height: 5.9%;
-    }
-
-    .unsubscribe-trigger:hover {
-      background: #261217;
-      border-color: #ff8c9f;
-      color: #ffbdc8;
-    }
-
-    .account-email-flashy {
-      color: #00ffe1;
-      font: 700 clamp(8px, 1.05vw, 15px) 'DM Sans', sans-serif;
-      text-align: center;
-      text-shadow: 0 0 6px #00ffe1, 0 0 12px #00c2ff;
-      inset: 9.3% auto auto 61%;
-      padding: 0;
-      position: absolute;
-      width: 10%;
-      z-index: 1;
-    }
+    .account-email-flashy { display: none; }
 
     .download-trigger {
       background: transparent;

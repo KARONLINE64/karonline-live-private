@@ -96,6 +96,7 @@ function authRenderUI() {
   document.querySelectorAll('[data-account-card]').forEach((el) => {
     el.textContent = state.card ? ` · ${state.card}` : '';
   });
+  if (typeof updateHomeVisual === 'function') updateHomeVisual();
 }
 
 function authBusy(form, submitLabel) {
