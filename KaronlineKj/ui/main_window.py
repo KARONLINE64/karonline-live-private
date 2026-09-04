@@ -1591,34 +1591,29 @@ class MainWindow(QMainWindow):
         duo_layout = QVBoxLayout(duo_page)
         duo_layout.setContentsMargins(0, 0, 0, 0)
 
-        duo_box = QGroupBox("KARONLINEBOX DUO — CHANTEZ ENSEMBLE À DISTANCE")
+        duo_box = QGroupBox("KARONLINEBOX DUO")
         duo_box_layout = QVBoxLayout(duo_box)
-
-        duo_intro = QLabel(
-            "Invitez un ami ou votre famille à chanter avec vous en direct.\n"
-            "Chantez ensemble comme si vous étiez dans la même pièce !"
-        )
-        duo_intro.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
-        duo_intro.setWordWrap(True)
-        duo_box_layout.addWidget(duo_intro)
+        duo_box_layout.setSpacing(4)
 
         duo_form = QFormLayout()
-        duo_form.setSpacing(6)
+        duo_form.setSpacing(3)
+        duo_form.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        duo_form.setFormAlignment(Qt.AlignLeft | Qt.AlignTop)
 
         self.duo_code_label = QLabel("○ Aucune session DUO active")
-        self.duo_code_label.setStyleSheet("color:#00c8ff;font-size:18px;font-weight:700;")
+        self.duo_code_label.setStyleSheet("color:#00c8ff;font-size:15px;font-weight:700;")
         duo_form.addRow("CODE DE SESSION", self.duo_code_label)
 
         self.duo_guest_label = QLabel("○ Aucun invité connecté")
-        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
+        self.duo_guest_label.setStyleSheet("color:#aeb7bf;font-size:12px;font-weight:600;")
         duo_form.addRow("STATUT INVITÉ", self.duo_guest_label)
 
         self.duo_audio_label = QLabel("○ Audio DUO en attente d'un invité")
-        self.duo_audio_label.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
+        self.duo_audio_label.setStyleSheet("color:#aeb7bf;font-size:11px;font-weight:600;")
         duo_form.addRow("AUDIO DUO", self.duo_audio_label)
 
         self.duo_video_label = QLabel("○ Webcam DUO en attente")
-        self.duo_video_label.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
+        self.duo_video_label.setStyleSheet("color:#aeb7bf;font-size:11px;font-weight:600;")
         duo_form.addRow("WEBCAM DUO", self.duo_video_label)
 
         # Champ de saisie pour rejoindre une session en tant qu'invité Desktop
@@ -1626,7 +1621,7 @@ class MainWindow(QMainWindow):
         self.duo_join_input.setPlaceholderText("Entrez le code hôte (ex: DUO-8492)")
         self.duo_join_input.setStyleSheet(
             "background:#0b1821;border:1px solid #387a90;border-radius:4px;"
-            "color:#00c8ff;font-size:13px;font-weight:700;padding:4px 8px;"
+            "color:#00c8ff;font-size:12px;font-weight:700;padding:3px 6px;"
         )
         duo_form.addRow("REJOINDRE (INVITÉ)", self.duo_join_input)
 
@@ -1636,22 +1631,22 @@ class MainWindow(QMainWindow):
         self.duo_start_btn = QPushButton("▶ DÉMARRER SESSION (HÔTE)")
         self.duo_start_btn.setStyleSheet(
             "background:linear-gradient(110deg,#124de5,#194fff);"
-            "border:0;border-radius:5px;padding:8px 14px;"
-            "color:#fff;font-weight:700;font-size:13px;"
+            "border:0;border-radius:5px;padding:5px 10px;"
+            "color:#fff;font-weight:700;font-size:12px;"
         )
         self.duo_start_btn.clicked.connect(self._start_duo_session_action)
 
         self.duo_join_btn = QPushButton("🔗 REJOINDRE")
         self.duo_join_btn.setStyleSheet(
             "background:#0d1822;border:1px solid #00c8ff;border-radius:5px;"
-            "padding:8px 14px;color:#00c8ff;font-weight:700;font-size:13px;"
+            "padding:5px 10px;color:#00c8ff;font-weight:700;font-size:12px;"
         )
         self.duo_join_btn.clicked.connect(self._join_duo_session_action)
 
         self.duo_stop_btn = QPushButton("✕ FERMER LA SESSION")
         self.duo_stop_btn.setStyleSheet(
             "background:#3a151b;border:1px solid #e80055;border-radius:5px;"
-            "padding:8px 14px;color:#ff6b6b;font-weight:700;font-size:13px;"
+            "padding:5px 10px;color:#ff6b6b;font-weight:700;font-size:12px;"
         )
         self.duo_stop_btn.setEnabled(False)
         self.duo_stop_btn.clicked.connect(self._stop_duo_session_action)
@@ -1679,7 +1674,7 @@ class MainWindow(QMainWindow):
         self.duo_overlay_btn = QPushButton("📹 AFFICHER / MASQUER LA WEBCAM INVITÉ")
         self.duo_overlay_btn.setStyleSheet(
             "background:#0d1822;border:1px solid #387a90;border-radius:5px;"
-            "padding:8px 14px;color:#f4f7fb;font-weight:700;font-size:13px;"
+            "padding:5px 10px;color:#f4f7fb;font-weight:700;font-size:12px;"
         )
         self.duo_overlay_btn.clicked.connect(self._toggle_duo_overlay)
         duo_box_layout.addWidget(self.duo_overlay_btn)
@@ -1696,14 +1691,16 @@ class MainWindow(QMainWindow):
         self.duo_chat_history = QPlainTextEdit()
         self.duo_chat_history.setReadOnly(True)
         self.duo_chat_history.document().setMaximumBlockCount(50)
-        self.duo_chat_history.setFixedHeight(110)
+        self.duo_chat_history.setFixedHeight(72)
         self.duo_chat_history.setPlaceholderText("Messages disponibles uniquement pendant la session DUO.")
         duo_chat_layout.addWidget(self.duo_chat_history)
         duo_chat_row = QHBoxLayout()
         self.duo_chat_input = QLineEdit()
+        self.duo_chat_input.setFixedHeight(28)
         self.duo_chat_input.setMaxLength(500)
         self.duo_chat_input.setPlaceholderText("Écrire un message...")
         self.duo_chat_send_btn = QPushButton("ENVOYER")
+        self.duo_chat_send_btn.setFixedHeight(28)
         self.duo_chat_send_btn.clicked.connect(self._send_duo_chat_message)
         self.duo_chat_input.returnPressed.connect(self._send_duo_chat_message)
         duo_chat_row.addWidget(self.duo_chat_input, 1)
@@ -1724,8 +1721,8 @@ class MainWindow(QMainWindow):
 
         version_card = QLabel(
             "<b>SOFTWARE VERSION & SYSTEM BUILD</b><br>"
-            "<span style='color:#00c8ff;font-size:20px;font-weight:700;'>KaronlineBox V90.2</span><br>"
-            "<span style='color:#4ade80;font-size:14px;font-weight:600;'>Date de Build : 01 Septembre 2026</span><br>"
+            "<span style='color:#00c8ff;font-size:20px;font-weight:700;'>KaronlineBox V90.6</span><br>"
+            "<span style='color:#4ade80;font-size:14px;font-weight:600;'>Date de Build : 04 Septembre 2026</span><br>"
             "<span style='color:#9aa9b7;font-size:12px;'>Fichier d'installation : karonlinebox_setup.exe (~44,3 Mo)</span>"
         )
         version_card.setStyleSheet(

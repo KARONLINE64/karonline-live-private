@@ -158,7 +158,7 @@ class DuoAudioLink(QObject):
             async def on_connectionstatechange():
                 state = peer.connectionState
                 self.status_changed.emit(f"Audio DUO WebRTC : {state}")
-                if state in {"failed", "disconnected", "closed"}:
+                if state in {"failed", "disconnected"}:
                     self.error.emit(
                         f"Audio DUO WebRTC interrompu ({state}). "
                         "Vérifiez la connexion Internet et les pare-feu des deux PC."

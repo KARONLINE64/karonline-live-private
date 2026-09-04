@@ -24,7 +24,7 @@ class DuoVideoOverlay(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.setMinimumHeight(210)
+        self.setMinimumHeight(320)
 
         self._audio_muted = False
         self._video_muted = False
