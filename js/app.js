@@ -196,7 +196,7 @@ async function startKaronlineBoxDownload() {
     // Créer un lien invisible et cliquer dessus pour télécharger
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = 'KaronlineBox_V90_Setup.exe';
+    link.download = 'KaronlineBox_V90_6_Setup.exe';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

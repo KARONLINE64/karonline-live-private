@@ -166,5 +166,5 @@ function getCatalogueUrl() {
 }
 
 function getKaronlineBoxDownloadUrl() {
-  return 'downloads/KaronlineBox_V90_Setup.exe';
+  return 'downloads/KaronlineBox_V90_6_Setup.exe';
 }
