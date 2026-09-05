@@ -1709,7 +1709,7 @@ class MainWindow(QMainWindow):
 
         version_card = QLabel(
             "<b>SOFTWARE VERSION & SYSTEM BUILD</b><br>"
-            "<span style='color:#00c8ff;font-size:20px;font-weight:700;'>KaronlineBox V91.0</span><br>"
+            "<span style='color:#00c8ff;font-size:20px;font-weight:700;'>KaronlineBox V91.1</span><br>"
             "<span style='color:#4ade80;font-size:14px;font-weight:600;'>Date de Build : 05 Septembre 2026</span><br>"
             "<span style='color:#9aa9b7;font-size:12px;'>Fichier d'installation : karonlinebox_setup.exe (~44,3 Mo)</span>"
         )
