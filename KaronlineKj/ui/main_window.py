@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QSlider, QFrame, QGroupBox, QStackedWidget,
     QTableWidget, QTableWidgetItem, QHeaderView, QSizePolicy, QTabWidget,
     QMessageBox, QCheckBox, QButtonGroup, QFileDialog, QMenu,
-    QDialog, QLineEdit, QSpinBox, QDialogButtonBox, QInputDialog, QPlainTextEdit
+    QDialog, QLineEdit, QSpinBox, QDialogButtonBox, QInputDialog
 )
 from core.gstreamer_player import GStreamerPlayer, GStreamerError
 from core.models import Song
@@ -1684,30 +1684,8 @@ class MainWindow(QMainWindow):
         self.duo_overlay.frame_error.connect(
             lambda message: self._on_duo_webcam_status(message, False)
         )
+        self.duo_overlay.chat_message_requested.connect(self._send_duo_chat_message)
         duo_box_layout.addWidget(self.duo_overlay, 4)
-
-        self.duo_chat_box = QGroupBox("CHAT DUO")
-        duo_chat_layout = QVBoxLayout(self.duo_chat_box)
-        self.duo_chat_history = QPlainTextEdit()
-        self.duo_chat_history.setReadOnly(True)
-        self.duo_chat_history.document().setMaximumBlockCount(50)
-        self.duo_chat_history.setFixedHeight(56)
-        self.duo_chat_history.setPlaceholderText("Messages disponibles uniquement pendant la session DUO.")
-        duo_chat_layout.addWidget(self.duo_chat_history)
-        duo_chat_row = QHBoxLayout()
-        self.duo_chat_input = QLineEdit()
-        self.duo_chat_input.setFixedHeight(26)
-        self.duo_chat_input.setMaxLength(500)
-        self.duo_chat_input.setPlaceholderText("Écrire un message...")
-        self.duo_chat_send_btn = QPushButton("ENVOYER")
-        self.duo_chat_send_btn.setFixedHeight(26)
-        self.duo_chat_send_btn.clicked.connect(self._send_duo_chat_message)
-        self.duo_chat_input.returnPressed.connect(self._send_duo_chat_message)
-        duo_chat_row.addWidget(self.duo_chat_input, 1)
-        duo_chat_row.addWidget(self.duo_chat_send_btn)
-        duo_chat_layout.addLayout(duo_chat_row)
-        self.duo_chat_box.setVisible(False)
-        duo_box_layout.addWidget(self.duo_chat_box)
 
         duo_layout.addWidget(duo_box)
 
@@ -1721,8 +1699,8 @@ class MainWindow(QMainWindow):
 
         version_card = QLabel(
             "<b>SOFTWARE VERSION & SYSTEM BUILD</b><br>"
-            "<span style='color:#00c8ff;font-size:20px;font-weight:700;'>KaronlineBox V90.7</span><br>"
-            "<span style='color:#4ade80;font-size:14px;font-weight:600;'>Date de Build : 04 Septembre 2026</span><br>"
+            "<span style='color:#00c8ff;font-size:20px;font-weight:700;'>KaronlineBox V90.8</span><br>"
+            "<span style='color:#4ade80;font-size:14px;font-weight:600;'>Date de Build : 05 Septembre 2026</span><br>"
             "<span style='color:#9aa9b7;font-size:12px;'>Fichier d'installation : karonlinebox_setup.exe (~44,3 Mo)</span>"
         )
         version_card.setStyleSheet(
@@ -2750,8 +2728,7 @@ class MainWindow(QMainWindow):
             self.duo_stop_btn.setEnabled(True)
             self.duo_audio_label.setText("○ Audio DUO en attente d'un invité")
             self.duo_audio_label.setStyleSheet("color:#aeb7bf;font-size:13px;font-weight:600;")
-            self.duo_chat_history.clear()
-            self.duo_chat_box.setVisible(True)
+            self.duo_overlay.chat_dialog.history.clear()
             self.set_status(f"● Session DUO Hôte {code} démarrée", True)
             self.duo_qr_box.hide()
         else:
@@ -2789,8 +2766,7 @@ class MainWindow(QMainWindow):
             self.set_status(f"● {msg}", True)
             self._ensure_duo_overlay("Hôte DUO")
             self._set_duo_guest_controls_locked(True)
-            self.duo_chat_history.clear()
-            self.duo_chat_box.setVisible(True)
+            self.duo_overlay.chat_dialog.history.clear()
         else:
             QMessageBox.warning(self, "CONNEXION DUO IMPOSSIBLE", msg)
 
@@ -2841,19 +2817,14 @@ class MainWindow(QMainWindow):
             if control is not None:
                 control.setEnabled(not locked)
 
-    def _send_duo_chat_message(self):
-        text = self.duo_chat_input.text().strip()
+    def _send_duo_chat_message(self, text: str):
         if not text or not self.duo_manager.active_code:
             return
         self.duo_manager.send_chat_message(text)
-        self.duo_chat_input.clear()
 
     def _on_duo_chat_messages(self, messages: list):
-        for message in messages:
-            sender = str(message.get("sender", "Participant"))
-            text = str(message.get("text", "")).strip()
-            if text:
-                self.duo_chat_history.appendPlainText(f"{sender} : {text}")
+        if self.duo_overlay:
+            self.duo_overlay.append_chat_messages(messages)
 
     def _on_duo_session_created(self, code: str, qr_url: str):
         self.duo_code_label.setText(f"🟢 {code}")
@@ -2865,7 +2836,6 @@ class MainWindow(QMainWindow):
         self.set_status(f"● DUO : {guest_name} a rejoint la session !", True)
         self._duo_guest_connected_flag = True
         self._update_public_duo_webcam_button_state()
-        self.duo_chat_box.setVisible(True)
         if self.duo_overlay:
             self.duo_overlay.set_guest_name(guest_name)
             self.duo_overlay.set_connected_status(True)
@@ -2878,8 +2848,8 @@ class MainWindow(QMainWindow):
         self._duo_guest_connected_flag = False
         self._last_duo_guest_frame_data = None
         self._update_public_duo_webcam_button_state()
-        self.duo_chat_box.setVisible(False)
         if self.duo_overlay:
+            self.duo_overlay.chat_dialog.close()
             self.duo_overlay.set_connected_status(False)
 
     def _on_duo_session_closed(self):
@@ -2890,7 +2860,6 @@ class MainWindow(QMainWindow):
         self._last_duo_guest_frame_data = None
         self._update_public_duo_webcam_button_state()
         self._set_duo_guest_controls_locked(False)
-        self.duo_chat_box.setVisible(False)
         self.duo_start_btn.setEnabled(True)
         self.duo_join_btn.setEnabled(True)
         self.duo_stop_btn.setEnabled(False)
@@ -2899,6 +2868,7 @@ class MainWindow(QMainWindow):
             self._public_screen_mode = "video"
             self._show_public_background()
         if self.duo_overlay:
+            self.duo_overlay.chat_dialog.close()
             self.duo_overlay.set_connected_status(False)
 
     def _update_public_duo_webcam_button_state(self):

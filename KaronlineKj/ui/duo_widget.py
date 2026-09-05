@@ -9,8 +9,63 @@ import base64
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QPixmap
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
+    QDialog, QFrame, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit,
+    QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
+
+
+class DuoChatDialog(QDialog):
+    """Fenêtre de discussion temporaire ouverte depuis la webcam DUO."""
+
+    message_requested = Signal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Chat Box DUO")
+        self.resize(620, 420)
+        self.setMinimumSize(500, 320)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(10)
+
+        title = QLabel("CHAT BOX DUO")
+        title.setStyleSheet("color:#00c8ff;font-size:17px;font-weight:700;")
+        layout.addWidget(title)
+
+        self.history = QPlainTextEdit()
+        self.history.setReadOnly(True)
+        self.history.document().setMaximumBlockCount(50)
+        self.history.setPlaceholderText("Messages disponibles pendant la session DUO.")
+        layout.addWidget(self.history, 1)
+
+        composer = QHBoxLayout()
+        self.input = QLineEdit()
+        self.input.setMaxLength(500)
+        self.input.setPlaceholderText("Écrire un message...")
+        self.send_button = QPushButton("ENVOYER")
+        self.close_button = QPushButton("FERMER")
+        self.send_button.clicked.connect(self._send_message)
+        self.input.returnPressed.connect(self._send_message)
+        self.close_button.clicked.connect(self.close)
+        composer.addWidget(self.input, 1)
+        composer.addWidget(self.send_button)
+        composer.addWidget(self.close_button)
+        layout.addLayout(composer)
+
+    def _send_message(self):
+        text = self.input.text().strip()
+        if not text:
+            return
+        self.message_requested.emit(text)
+        self.input.clear()
+
+    def append_messages(self, messages: list):
+        for message in messages:
+            sender = str(message.get("sender", "Participant"))
+            text = str(message.get("text", "")).strip()
+            if text:
+                self.history.appendPlainText(f"{sender} : {text}")
 
 
 class DuoVideoOverlay(QWidget):
@@ -20,6 +75,7 @@ class DuoVideoOverlay(QWidget):
     toggle_audio_muted = Signal(bool)
     toggle_video_muted = Signal(bool)
     frame_error = Signal(str)
+    chat_message_requested = Signal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -28,6 +84,8 @@ class DuoVideoOverlay(QWidget):
 
         self._audio_muted = False
         self._video_muted = False
+        self.chat_dialog = DuoChatDialog(self)
+        self.chat_dialog.message_requested.connect(self.chat_message_requested)
 
         self._init_ui()
 
@@ -120,9 +178,33 @@ class DuoVideoOverlay(QWidget):
         self.cam_btn.clicked.connect(self._toggle_cam)
         footer.addWidget(self.cam_btn)
 
+        self.chat_btn = QPushButton("💬 Chat Box")
+        self.chat_btn.setStyleSheet("""
+            QPushButton {
+                background: #0b1821;
+                border: 1px solid #387a90;
+                color: #f4f7fb;
+                font-size: 12px;
+                padding: 4px 10px;
+                border-radius: 4px;
+            }
+            QPushButton:hover { background: #145cff; }
+        """)
+        self.chat_btn.clicked.connect(self._open_chat)
+        footer.addWidget(self.chat_btn)
+
         footer.addStretch()
 
         container_layout.addLayout(footer)
+
+    def _open_chat(self):
+        self.chat_dialog.show()
+        self.chat_dialog.raise_()
+        self.chat_dialog.activateWindow()
+        self.chat_dialog.input.setFocus()
+
+    def append_chat_messages(self, messages: list):
+        self.chat_dialog.append_messages(messages)
 
     def set_guest_name(self, name: str):
         self.avatar_label.setText(f"👤 {name}")
