@@ -67,5 +67,5 @@ function getCatalogueUrl() {
 }
 
 function getKaronlineBoxDownloadUrl() {
-  return 'https://raw.githubusercontent.com/KARONLINE64/karonline-live-private/karonlinelive-site/downloads/KaronlineBox_V90_9_Setup.exe';
+  return 'https://raw.githubusercontent.com/KARONLINE64/karonline-live-private/karonlinelive-site/downloads/KaronlineBox_V91_0_Setup.exe';
 }

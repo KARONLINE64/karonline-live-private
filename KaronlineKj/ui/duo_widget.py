@@ -23,7 +23,7 @@ class DuoChatPanel(QFrame):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setObjectName("duoChatPanel")
-        self.setMinimumHeight(270)
+        self.setFixedHeight(215)
         self.setStyleSheet("""
             #duoChatPanel {
                 background: #030b12;
@@ -63,7 +63,7 @@ class DuoChatPanel(QFrame):
         layout.addWidget(self.history, 1)
 
         self.input = QPlainTextEdit()
-        self.input.setFixedHeight(72)
+        self.input.setFixedHeight(52)
         self.input.setPlaceholderText("Écrire un message...")
         layout.addWidget(self.input)
 

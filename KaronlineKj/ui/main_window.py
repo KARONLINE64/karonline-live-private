@@ -1594,6 +1594,10 @@ class MainWindow(QMainWindow):
         duo_box = QGroupBox()
         duo_box_layout = QVBoxLayout(duo_box)
         duo_box_layout.setSpacing(4)
+        self.duo_session_controls = QWidget()
+        duo_session_layout = QVBoxLayout(self.duo_session_controls)
+        duo_session_layout.setContentsMargins(0, 0, 0, 0)
+        duo_session_layout.setSpacing(4)
 
         duo_form = QFormLayout()
         duo_form.setSpacing(3)
@@ -1625,7 +1629,7 @@ class MainWindow(QMainWindow):
         )
         duo_form.addRow("REJOINDRE (INVITÉ)", self.duo_join_input)
 
-        duo_box_layout.addLayout(duo_form)
+        duo_session_layout.addLayout(duo_form)
 
         duo_buttons = QHBoxLayout()
         self.duo_start_btn = QPushButton("▶ DÉMARRER SESSION (HÔTE)")
@@ -1655,7 +1659,7 @@ class MainWindow(QMainWindow):
         duo_buttons.addWidget(self.duo_join_btn)
         duo_buttons.addWidget(self.duo_stop_btn)
         duo_buttons.addStretch()
-        duo_box_layout.addLayout(duo_buttons)
+        duo_session_layout.addLayout(duo_buttons)
 
         self.duo_qr_box = QWidget()
         qr_layout = QVBoxLayout(self.duo_qr_box)
@@ -1669,7 +1673,7 @@ class MainWindow(QMainWindow):
         qr_layout.addWidget(self.duo_qr_label)
         qr_layout.addWidget(self.duo_instructions)
         self.duo_qr_box.hide()
-        duo_box_layout.addWidget(self.duo_qr_box)
+        duo_session_layout.addWidget(self.duo_qr_box)
 
         self.duo_overlay_btn = QPushButton("📹 AFFICHER / MASQUER LA WEBCAM INVITÉ")
         self.duo_overlay_btn.setStyleSheet(
@@ -1677,7 +1681,7 @@ class MainWindow(QMainWindow):
             "padding:5px 10px;color:#f4f7fb;font-weight:700;font-size:12px;"
         )
         self.duo_overlay_btn.clicked.connect(self._toggle_duo_overlay)
-        duo_box_layout.addWidget(self.duo_overlay_btn)
+        duo_session_layout.addWidget(self.duo_overlay_btn)
 
         # Widget webcam fixe (non volant) sous le bouton AFFICHER/MASQUER
         self.duo_overlay = DuoVideoOverlay(self)
@@ -1690,6 +1694,7 @@ class MainWindow(QMainWindow):
         self.duo_chat_panel.close_requested.connect(self._close_duo_chat)
         self.duo_chat_panel.hide()
         duo_box_layout.addWidget(self.duo_chat_panel)
+        duo_box_layout.addWidget(self.duo_session_controls)
         duo_box_layout.addWidget(self.duo_overlay, 4)
 
         duo_layout.addWidget(duo_box)
@@ -1704,7 +1709,7 @@ class MainWindow(QMainWindow):
 
         version_card = QLabel(
             "<b>SOFTWARE VERSION & SYSTEM BUILD</b><br>"
-            "<span style='color:#00c8ff;font-size:20px;font-weight:700;'>KaronlineBox V90.9</span><br>"
+            "<span style='color:#00c8ff;font-size:20px;font-weight:700;'>KaronlineBox V91.0</span><br>"
             "<span style='color:#4ade80;font-size:14px;font-weight:600;'>Date de Build : 05 Septembre 2026</span><br>"
             "<span style='color:#9aa9b7;font-size:12px;'>Fichier d'installation : karonlinebox_setup.exe (~44,3 Mo)</span>"
         )
@@ -2825,11 +2830,13 @@ class MainWindow(QMainWindow):
     def _open_duo_chat(self):
         if not self.duo_manager.active_code:
             return
+        self.duo_session_controls.hide()
         self.duo_chat_panel.show()
         self.duo_chat_panel.input.setFocus()
 
     def _close_duo_chat(self):
         self.duo_chat_panel.hide()
+        self.duo_session_controls.show()
 
     def _send_duo_chat_message(self, text: str):
         if not text or not self.duo_manager.active_code:
